@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# A stand-in for devenv in tests/cli.sh: records every call to $STUB_LOG and
+# does the least the CLI depends on. Never the real thing -- the real one is
+# what `nix run .#templates-check` exercises.
+echo "$PWD :: $*" >>"$STUB_LOG"
+case "$1" in
+  init)
+    cat >devenv.nix <<'NIX'
+{ pkgs, lib, config, inputs, ... }:
+
+{
+  packages = [ pkgs.git ];
+
+  # https://devenv.sh/languages/
+  # languages.rust.enable = true;
+
+  # processes.dev.exec = "ls";
+}
+NIX
+    printf 'inputs: {}\n' >devenv.yaml
+    printf '.devenv*\n' >.gitignore
+    ;;
+  processes)
+    case "${STUB_PROCESSES:-stopped}" in
+      # The two answers devenv 2.3.1 gives, measured: a table with exit 0,
+      # or this message with exit 1.
+      # Run by a program rather than a terminal, devenv also prints its
+      # progress on stderr; only the rows with restarts: are processes.
+      running) printf '• Validating lock\n✓ Validating lock in 15ms\n' >&2; printf 'web                            ready restarts: 0\ndb                             running restarts: 1\n' ;;
+      noise) printf '• Validating lock\n' >&2 ;;
+      stopped) echo "  x No process manager is running. Start processes first with \`devenv up -d\`" >&2; exit 1 ;;
+      hang) sleep 30 ;;
+      fail) echo "error: boom" >&2; exit 1 ;;
+    esac
+    ;;
+  allow | revoke | version) ;;
+esac

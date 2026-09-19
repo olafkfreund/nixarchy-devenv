@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# A stand-in for nix in tests/cli.sh: records the call, and for `run` writes
+# what a cloud generator leaves behind. The real generator runs only in
+# `nix run .#templates-check`.
+echo "$PWD :: nix $*" >>"$STUB_LOG"
+case " $* " in
+  *" run "*)
+    printf '{ }\n' >devenv.nix
+    printf 'inputs: {}\n' >devenv.yaml
+    git init -q
+    ;;
+esac

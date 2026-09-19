@@ -1,0 +1,16 @@
+// Paste these rows into ~/.config/omarchy/extensions/omarchy-menu.jsonc,
+// inside its top-level { }. Omarchy reloads the file on save. On nixarchy
+// the row is part of the menu defaults and there is nothing to paste.
+//
+// "apps.devenv" puts Dev environments under Apps in the Omarchy menu
+// (Super+Alt+Space); search for devenv, environments or projects from
+// anywhere in the menu. The menu searches `label` and `aliases` only.
+{
+  "apps.devenv": {
+    "icon": "󱄅",
+    "label": "Dev environments",
+    "description": "List, create, enter and manage devenv environments · Super+Alt+E",
+    "aliases": ["devenv", "environments", "projects", "dev shell", "new project", "nix shell"],
+    "action": "omarchy-shell shell toggle nixarchy.devenv '{}'"
+  }
+}

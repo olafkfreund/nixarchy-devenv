@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "nixarchy.devenv",
+  "name": "Dev environments",
+  "version": "0.1.0",
+  "author": "olafkfreund",
+  "license": "MIT",
+  "description": "devenv for Omarchy, on the bar and on a key: every devenv environment under your project roots, enter one in a terminal, edit it, start and stop its processes, update its lock, allow or revoke it, remove it in steps from revoke to delete, and create a new project from templates for languages, mobile and cloud. Create and update stream their log into the panel.",
+  "homepage": "https://github.com/olafkfreund/nixarchy-devenv",
+  "kinds": [
+    "menu",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "menu": "Menu.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Dev environments",
+    "description": "Your devenv environments, allowed ones first. Driven from the keyboard: enter opens devenv shell in a terminal, e edits devenv.nix, s starts or stops processes, p checks them, g updates the lock, a allows or revokes, x removes, c creates from a template, G runs devenv gc, y copies the path, / filters, u refreshes, o shows the log, and ? lists the lot inside the panel.",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "projectRoots": "~/Source:~/Projects",
+      "refreshIntervalSec": 60,
+      "terminalEditor": "",
+      "hideWhenEmpty": false
+    },
+    "schema": [
+      {
+        "key": "projectRoots",
+        "type": "string",
+        "label": "Project roots",
+        "description": "Folders searched for devenv.nix, separated by ':' like PATH, three levels deep, without following symlinks. Projects you allowed elsewhere are listed too. New projects go in the first one by default.",
+        "defaultValue": "~/Source:~/Projects"
+      },
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "description": "How often the bar re-reads the project roots. The panel refreshes every 5 seconds while it is open, regardless of this.",
+        "min": 10,
+        "max": 3600,
+        "step": 10,
+        "defaultValue": 60
+      },
+      {
+        "key": "terminalEditor",
+        "type": "string",
+        "label": "Editor",
+        "description": "The command e opens devenv.nix with, in a terminal. Empty uses $EDITOR, then nvim. Plain words only, for example: hx, or nvim -p.",
+        "defaultValue": ""
+      },
+      {
+        "key": "hideWhenEmpty",
+        "type": "boolean",
+        "label": "Hide the bar icon when there are no environments",
+        "description": "On removes the button from the bar until there is an environment to show.",
+        "defaultValue": false
+      }
+    ]
+  },
+  "keepLoaded": true
+}

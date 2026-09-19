@@ -1,0 +1,28 @@
+title: nixarchy.devenv
+description: devenv environments in the Omarchy shell, on the bar and on a key
+url: "https://olafkfreund.github.io"
+baseurl: "/nixarchy-devenv"
+
+# No theme gem, as in nixarchy and its plugins: _layouts/,
+# _includes/logo.html and assets/style.css are the whole site, so what builds
+# on GitHub Pages is exactly what is in this directory.
+
+# capture.sh stages and retakes the screenshots; it is not a page.
+exclude:
+  - capture.sh
+
+# The manual is one page, docs/usage.md. The sidebar lists its sections, in
+# reading order. The anchors are kramdown's generated heading ids: rename a
+# heading in usage.md and its entry here has to follow.
+nav:
+  - { path: /usage/,                            title: The manual }
+  - { path: /usage/#what-it-is,                 title: What it is }
+  - { path: /usage/#requirements,               title: Requirements }
+  - { path: /usage/#install-on-nixos-nixarchy,  title: Install on NixOS }
+  - { path: /usage/#install-without-nix,        title: Install without Nix }
+  - { path: /usage/#the-bar-popup,              title: The bar popup }
+  - { path: /usage/#the-full-screen-menu,       title: The full-screen menu }
+  - { path: /usage/#everyday-tasks,             title: Everyday tasks }
+  - { path: /usage/#settings,                   title: Settings }
+  - { path: /usage/#troubleshooting,            title: Troubleshooting }
+  - { path: /usage/#removal,                    title: Removal }
