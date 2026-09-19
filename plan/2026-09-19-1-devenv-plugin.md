@@ -534,3 +534,20 @@ Every other row shows `·`, meaning not checked.
   ancestor of one", which is a removal safety check.
 - **Step 9: `gc()` is renamed `runGc()`.** `gc` is the QML engine's own
   global function and is an illegal method name in QML.
+
+## Verification log
+
+- **Step 13, live on p620 (2026-09-19)**, under a `mktemp -d` root in
+  `~/Projects`:
+  - "Remove devenv files" on `t3` with its process running was refused,
+    showing "Its processes are running; stop them first (s)", and nothing
+    was deleted.
+  - Revoke on an allowed `t1` made it not allowed and deleted nothing.
+  - "files" on `t1` removed `devenv.nix`, `devenv.yaml`, `devenv.lock` and
+    `.devenv-template`, and kept `main.py`, `.git` and `.devenv/state/db/x`.
+  - "state" on `t2` removed `.devenv`, and kept the generator's files and
+    `.envrc`.
+  - "folder" on `t3` was refused with the name untyped, and deleted `t3` once
+    `t3` was typed. The root survived.
+  - Afterwards the test root was removed, the real allow list was back to its
+    80 original entries, and no test process was left.
