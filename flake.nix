@@ -25,6 +25,7 @@
         ./CreateForm.qml
         ./LogView.qml
         ./ShortcutSheet.qml
+        ./devenv-binds.lua
       ];
 
       pluginFor = pkgs:
@@ -46,6 +47,28 @@
           '';
     in
     {
+      # The key bind, the one piece of the plugin that lives outside the plugin
+      # folder. Writes ~/.config/hypr/devenv-binds.lua from the same file the
+      # plugin ships, so the Nix and non-Nix installs bind the same thing.
+      # bindings.lua still has to load it: pcall(require, "hypr.devenv-binds").
+      homeManagerModules.default = { config, lib, ... }:
+        let cfg = config.programs.nixarchy-devenv;
+        in
+        {
+          options.programs.nixarchy-devenv.keybinding = lib.mkOption {
+            # A chord only: the value lands inside a Lua string.
+            type = lib.types.nullOr (lib.types.strMatching "[A-Z0-9_ +]+");
+            default = "SUPER + ALT + E";
+            description = "Chord that opens Dev environments, in Omarchy's o.bind syntax. Null writes no bind.";
+          };
+
+          config = lib.mkIf (cfg.keybinding != null) {
+            home.file.".config/hypr/devenv-binds.lua".text =
+              builtins.replaceStrings [ "SUPER + ALT + E" ] [ cfg.keybinding ]
+                (builtins.readFile ./devenv-binds.lua);
+          };
+        };
+
       packages = forAll (system:
         let pkgs = nixpkgs.legacyPackages.${system};
         in rec {
