@@ -16,6 +16,16 @@
           default = cli;
         });
 
+      apps = forAll (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          templates-check = {
+            type = "app";
+            program = "${pkgs.callPackage ./pkgs/templates-check.nix { cli = self.packages.${system}.cli; }}/bin/templates-check";
+            meta.description = "Scaffold every template with a real devenv and evaluate it (needs network)";
+          };
+        });
+
       checks = forAll (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
