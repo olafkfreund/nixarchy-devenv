@@ -261,12 +261,144 @@ cmd_new() {
   fi
 }
 
+# ---- list ---------------------------------------------------------------------
+
+allowed_file() {
+  if [ -n "${DEVENV_HOME:-}" ]; then
+    echo "$DEVENV_HOME/allowed"
+  else
+    echo "${XDG_DATA_HOME:-$HOME/.local/share}/devenv/allowed"
+  fi
+}
+
+expand_root() {
+  case "$1" in
+    \~) echo "$HOME" ;;
+    \~/*) echo "$HOME/${1:2}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# The template a project was made from, if we made it. Anything else is
+# "custom": guessing from the contents of devenv.nix would be a guess.
+template_of() {
+  local t=""
+  [ -f "$1/.devenv-template" ] && t=$(head -n1 "$1/.devenv-template")
+  if [[ $t =~ ^[a-z0-9-]+$ ]]; then echo "$t"; else echo custom; fi
+}
+
+cmd_list() {
+  [ "${1:-}" = "--json" ] || die 1 "usage: nixarchy-devenv list --json [--root DIR]..."
+  shift
+  local roots=() r
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --root) [ -n "${2:-}" ] || die 1 "--root needs a directory"; roots+=("$(expand_root "$2")"); shift ;;
+      *) die 1 "unknown argument $1" ;;
+    esac
+    shift
+  done
+
+  local tmp
+  tmp=$(mktemp -d)
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmp'" EXIT
+  : >"$tmp/candidates"
+  : >"$tmp/warnings"
+  : >"$tmp/allowed"
+
+  # Roots: -P never follows a symlink, and the pruned directories are where
+  # vendored copies of other people's devenv.nix live.
+  for r in "${roots[@]}"; do
+    if [ ! -d "$r" ] || [ ! -r "$r" ] || [ ! -x "$r" ]; then
+      echo "$r is missing or unreadable" >>"$tmp/warnings"
+      continue
+    fi
+    find -P "$r" -maxdepth 3 \
+      \( -name .git -o -name node_modules -o -name .devenv -o -name .direnv \) -prune \
+      -o -name devenv.nix -type f -printf '%h\0' 2>/dev/null >>"$tmp/candidates"
+  done
+
+  # The allow list: a hint, read and never written. A line that is not JSON
+  # with a string path is counted rather than fatal -- devenv may be halfway
+  # through writing it.
+  local af skipped=0 total=0 good=0
+  af=$(allowed_file)
+  if [ -f "$af" ]; then
+    total=$(grep -c . "$af" || true)
+    jq -R -r 'fromjson? | .path? | select(type == "string" and startswith("/"))' "$af" \
+      >"$tmp/allowed.raw" 2>/dev/null || true
+    good=$(grep -c . "$tmp/allowed.raw" || true)
+    skipped=$((total - good))
+    while IFS= read -r r; do
+      if [ -f "$r/devenv.nix" ] && [ ! -L "$r/devenv.nix" ]; then
+        printf '%s\0' "$r" >>"$tmp/candidates"
+      fi
+      realpath -e -- "$r" 2>/dev/null >>"$tmp/allowed" || true
+    done <"$tmp/allowed.raw"
+  fi
+
+  # Deduped by realpath; the path shown is that realpath, which is what a
+  # removal later has to match exactly.
+  local d real
+  declare -A seen=()
+  while IFS= read -r -d '' d; do
+    real=$(realpath -e -- "$d" 2>/dev/null) || continue
+    [ -z "${seen[$real]:-}" ] || continue
+    seen[$real]=1
+    jq -n -c \
+      --arg path "$real" \
+      --arg name "$(basename "$real")" \
+      --argjson allowed "$(grep -qxF -- "$real" "$tmp/allowed" && echo true || echo false)" \
+      --argjson lockfile "$([ -f "$real/devenv.lock" ] && echo true || echo false)" \
+      --arg template "$(template_of "$real")" \
+      --argjson hasProcesses "$(grep -qE '^[[:space:]]*(processes|services)[[:space:]]*[.=]' "$real/devenv.nix" && echo true || echo false)" \
+      --argjson dev "$(stat -c %d "$real")" \
+      --argjson mtime "$(stat -c %Y "$real/devenv.nix")" \
+      '$ARGS.named'
+  done <"$tmp/candidates" >"$tmp/rows"
+
+  jq -n \
+    --slurpfile rows "$tmp/rows" \
+    --rawfile warnings "$tmp/warnings" \
+    --argjson skipped "$skipped" \
+    '{rows: $rows, warnings: ($warnings | split("\n") | map(select(. != ""))), skipped: $skipped}'
+}
+
+# ---- status -------------------------------------------------------------------
+
+# Read-only, and fast: with no process manager running, devenv answers in
+# ~0.1 s without evaluating anything (measured at 2.3.1). Anything that is not
+# one of its two known answers is "unknown" -- and unknown blocks removal.
+cmd_status() {
+  [ "${1:-}" = "--json" ] && [ -n "${2:-}" ] || die 1 "usage: nixarchy-devenv status --json DIR"
+  local dir=$2 out rc=0
+  [ -d "$dir" ] || die 2 "$dir is not a directory."
+  if ! command -v devenv >/dev/null 2>&1; then
+    jq -n '{state: "unknown", devenv: false, processes: []}'
+    return
+  fi
+  out=$(cd "$dir" && timeout "${NIXARCHY_DEVENV_STATUS_TIMEOUT:-10}" devenv processes list 2>&1) || rc=$?
+  if [ "$rc" = 0 ] && [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+    # `name   status restarts: N`, one per line.
+    printf '%s\n' "$out" | jq -R -s '
+      {state: "running", devenv: true,
+       processes: (split("\n") | map(select(test("\\S")) | capture("^(?<name>\\S+)\\s+(?<status>\\S+)")?) )}'
+  elif [ "$rc" != 124 ] && printf '%s' "$out" | grep -q 'No process manager is running'; then
+    jq -n '{state: "stopped", devenv: true, processes: []}'
+  else
+    jq -n --arg why "$(printf '%s' "$out" | tail -n 3)" '{state: "unknown", devenv: true, processes: [], detail: $why}'
+  fi
+}
+
 # ---- dispatch -----------------------------------------------------------------
 
 case "${1:-help}" in
   templates) shift; cmd_templates "$@" ;;
   init) shift; cmd_init "$@" ;;
   new) shift; cmd_new "$@" ;;
+  list) shift; cmd_list "$@" ;;
+  status) shift; cmd_status "$@" ;;
   help | -h | --help) cmd_help ;;
   *) cmd_help >&2; die 1 "unknown command '$1'." ;;
 esac

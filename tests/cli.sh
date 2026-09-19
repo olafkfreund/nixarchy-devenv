@@ -22,7 +22,7 @@ mkdir -p "$HOME" "$XDG_DATA_HOME/devenv"
 # devenv or nix. "No devenv" has to mean no devenv, and nothing here may reach
 # the network or the real trust database.
 mkdir -p "$root/bin"
-for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir sleep touch; do
+for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir sleep touch ln sort uniq wc sha256sum printf; do
   ln -s "$(command -v "$c")" "$root/bin/$c"
 done
 base_path="$root/bin"
@@ -130,6 +130,75 @@ expect 3 "new without devenv cleans up" -- "$cli" new --parent "$p" --name gone 
 [ ! -e "$p/gone" ] || bad "new: failed create removes its directory"
 expect 1 "new unknown template creates nothing" -- with_devenv "$cli" new --parent "$p" --name nt nope
 [ ! -e "$p/nt" ] || bad "new: unknown template creates no directory"
+
+# ---- list ---------------------------------------------------------------------
+
+L=$(fresh)
+mkdir -p "$L/a" "$L/a/nested" "$L/deep/1/2/3" "$L/b/node_modules/x" "$L/b/.git/y" "$L/real" "$L/sp ace"
+for d in a a/nested deep/1/2/3 b/node_modules/x b/.git/y real "sp ace"; do echo '{ }' >"$L/$d/devenv.nix"; done
+ln -s "$L/real" "$L/link"
+echo python >"$L/a/.devenv-template"
+echo '../../etc' >"$L/real/.devenv-template"
+printf '{ ... }:\n{\n  processes.web.exec = "x";\n}\n' >"$L/a/nested/devenv.nix"
+printf '{ ... }:\n{\n  # processes.web.exec = "x";\n}\n' >"$L/real/devenv.nix"
+touch "$L/a/devenv.lock"
+O=$(fresh)
+mkdir -p "$O/outside"
+echo '{ }' >"$O/outside/devenv.nix"
+
+allowed="$XDG_DATA_HOME/devenv/allowed"
+{
+  echo "{\"path\":\"$L/a\"}"
+  echo "{\"path\":\"$O/outside\"}"
+  echo "{\"path\":\"$root/gone\"}"
+  echo 'not json'
+  echo '{"path":42}'
+  echo "{\"path\":\"$L/a\""
+} >"$allowed"
+before=$(sha256sum "$allowed")
+
+expect 0 "list" -- "$cli" list --json --root "$L" --root "$root/missing"
+out="$root/out"
+paths() { jq -r '.rows[].path' "$out" | sort; }
+paths | grep -qxF "$L/a" || bad "list: a"
+paths | grep -qxF "$L/a/nested" || bad "list: nested project is its own row"
+paths | grep -qxF "$L/sp ace" || bad "list: path with a space"
+paths | grep -qxF "$L/real" || bad "list: real"
+! paths | grep -q "/link$" || bad "list: symlink not followed"
+! paths | grep -q "deep/1/2/3" || bad "list: depth limit"
+! paths | grep -q "node_modules\|\.git" || bad "list: pruned directories"
+paths | grep -qxF "$O/outside" || bad "list: allowed path outside the roots is listed"
+! paths | grep -q "/gone" || bad "list: dead allow entry hidden"
+[ "$(paths | sort | uniq -d | wc -l)" = 0 ] || bad "list: no duplicates"
+jq -e '.skipped == 3' "$out" >/dev/null || bad "list: 3 malformed allow lines counted, got $(jq .skipped "$out")"
+jq -e '.warnings | length == 1 and (.[0] | test("missing"))' "$out" >/dev/null || bad "list: missing root warned"
+row() { jq -c --arg p "$1" '.rows[] | select(.path == $p)' "$out"; }
+row "$L/a" | jq -e '.allowed and .lockfile and .template == "python" and (.hasProcesses | not) and (.dev|type=="number")' >/dev/null || bad "list: row a fields"
+row "$L/real" | jq -e '(.allowed | not) and (.lockfile | not) and .template == "custom" and (.hasProcesses | not)' >/dev/null || bad "list: bad .devenv-template is custom, commented processes ignored"
+row "$L/a/nested" | jq -e '.hasProcesses' >/dev/null || bad "list: hasProcesses"
+[ "$before" = "$(sha256sum "$allowed")" ] || bad "list: allow file unchanged"
+
+DEVENV_HOME="$root/dh" expect 0 "list with DEVENV_HOME" -- env DEVENV_HOME="$root/dh" "$cli" list --json
+jq -e '.rows == [] and .skipped == 0' "$out" >/dev/null || bad "list: DEVENV_HOME replaces the XDG allow file"
+mkdir -p "$root/xdg2/devenv" && echo "{\"path\":\"$O/outside\"}" >"$root/xdg2/devenv/allowed"
+expect 0 "list with XDG_DATA_HOME" -- env XDG_DATA_HOME="$root/xdg2" "$cli" list --json
+jq -e '.rows | length == 1' "$out" >/dev/null || bad "list: XDG_DATA_HOME honoured"
+expect 1 "list without --json" -- "$cli" list
+
+# ---- status -------------------------------------------------------------------
+
+S=$(fresh)
+STUB_PROCESSES=running expect 0 "status running" -- with_devenv env STUB_PROCESSES=running "$cli" status --json "$S"
+jq -e '.state == "running" and (.processes | map(.name) == ["web","db"])' "$root/out" >/dev/null || bad "status: running parsed"
+expect 0 "status stopped" -- with_devenv env STUB_PROCESSES=stopped "$cli" status --json "$S"
+jq -e '.state == "stopped"' "$root/out" >/dev/null || bad "status: stopped"
+expect 0 "status hang" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" status --json "$S"
+jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: a hang is unknown"
+expect 0 "status fail" -- with_devenv env STUB_PROCESSES=fail "$cli" status --json "$S"
+jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: an error is unknown"
+expect 0 "status without devenv" -- "$cli" status --json "$S"
+jq -e '.state == "unknown" and .devenv == false' "$root/out" >/dev/null || bad "status: no devenv"
+expect 2 "status of missing dir" -- "$cli" status --json "$root/nope"
 
 echo "cli: $pass passed, $fail failed"
 [ "$fail" = 0 ]
