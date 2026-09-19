@@ -504,3 +504,9 @@ Every other row shows `·`, meaning not checked.
   like `-x` would read as an option to later commands.
 - **Step 3: `--no-git` for a generator whose `honours_git` is false exits 1**,
   rather than silently running `git init`.
+- **Step 5: `flake.nix` grows with the files it packages.** Step 5 ships the
+  CLI package plus the `cli` and `repo` checks. The plugin package and its
+  manifest, singleton and colour checks arrive in step 8, with the manifest.
+  The Node test check arrives in step 7. `homeManagerModules` arrives in
+  step 12, with `devenv-binds.lua`. Declaring them earlier would fail
+  `nix flake check` on files that do not exist yet.
