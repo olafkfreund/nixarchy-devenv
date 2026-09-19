@@ -4,10 +4,6 @@ Instructions for any AI agent working in this repository: Claude Code, Codex, Co
 Gemini or others. `CLAUDE.md` and `.github/copilot-instructions.md` point here. This
 file is the single source. When anything disagrees with it, this file wins.
 
-> **Status:** design stage. The files in the Layout table are the target described by
-> `intent/`, `spec/` and `plan/`. Nothing is implemented until `plan/` is
-> `status: approved`. Keep this file in step with the approved plan.
-
 ## What this repository is
 
 `nixarchy.devenv` is an [Omarchy](https://omarchy.org/) shell plugin written in
@@ -51,12 +47,14 @@ nixarchy. The user guide is [`docs/usage.md`](docs/usage.md). The design is in
 | `Panel.qml` | The bar widget host: glyph, `KeyboardPanel` popup, and IPC target `nixarchy.devenv.bar`. |
 | `Menu.qml` | The full-screen menu host (manifest kind `menu`). |
 | `manifest.json` | Plugin id `nixarchy.devenv`, kinds `menu` + `bar-widget`, `keepLoaded: true`, settings schema. |
-| `data/templates.nix` | The template catalogue: `preset` entries (devenv option lines) and `generator` entries (pinned template sources such as cloud-projects-templates, with declared capabilities). |
-| `pkgs/cli.nix` | The `nixarchy-devenv` CLI (`list --json`, `templates --json`, `init`). It moved here from nixarchy's `pkgs/dev-init.nix`. |
+| `data/templates.nix` | The template catalogue: `preset` entries (devenv option lines) and `generator` entries (pinned template sources such as cloud-projects-templates, with declared capabilities). Option names are read from devenv's source; see its header. |
+| `pkgs/cli.sh` | The `nixarchy-devenv` command: `templates`, `init`, `new`, `list`, `status`, `remove`. Everything that reads or changes a project directory is here, and removal's safety checks run here, right before deleting. It moved from nixarchy's `pkgs/dev-init.nix`. |
+| `pkgs/cli.nix` | Builds the command: the template index (`share/templates.json`) and one indented `share/presets/<id>.nix` per preset, then `writeShellApplication` over `cli.sh` (shellcheck runs at build). |
+| `pkgs/templates-check.nix` | `nix run .#templates-check [id…]`: every template against a real devenv, under `env -i` with a throwaway `HOME`/`XDG_*`, failing if the invoker's allow list changes. |
 | `devenv-binds.lua` | The key, loaded from `~/.config/hypr/bindings.lua` with `pcall(require, "hypr.devenv-binds")`. |
 | `flake.nix` | The package (an explicit `files` list, copied as real files), the CLI, `homeManagerModules.default` (the name microvm uses), `checks`, and the `templates-check` runner. |
 | `share/omarchy-menu.jsonc` | The Omarchy menu row for users who are not on nixarchy. |
-| `tests/` | Node tests for `Model.js` (`tests/run.js`). |
+| `tests/` | Node tests for `Model.js` (`tests/run.js`, `tests/model/`), and `tests/cli.sh`, which runs the command against stub `devenv` and `nix` (`tests/stub/`) on a PATH built from symlinked tools, so it can never reach the real ones. |
 | `docs/` | The GitHub Pages site (`docs/index.md`, `docs/usage.md`) and `capture.sh`. |
 | `intent/`, `spec/`, `plan/` | Design artifacts for each task. See Workflow. |
 
@@ -64,10 +62,11 @@ nixarchy. The user guide is [`docs/usage.md`](docs/usage.md). The design is in
 
 ```bash
 node tests/run.js                              # Model tests
-nix flake check                                # tests + manifest, entry points, no symlinks, no pacman/yay, no hex colours
+bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"   # CLI tests
+nix flake check                                # both, + manifest, entry points, no symlinks, no pacman/yay, no hex colours
 nix flake check --all-systems --no-build       # aarch64 evaluates
 nix run .#templates-check                      # scaffold every preset with a real devenv and evaluate it (needs network)
-nix build                                      # the plugin folder, exactly as nixarchy links it
+nix build                                      # the plugin folder (.#plugin), exactly as nixarchy links it
 omarchy plugin validate "$(readlink -f result)"
 ```
 
@@ -87,7 +86,10 @@ d=$(mktemp -d) && git clone -q . "$d/p" && rm -rf "$d/p/.git" && omarchy plugin 
    cp -rL result ~/.config/omarchy/plugins/nixarchy.devenv
    chmod -R u+w ~/.config/omarchy/plugins/nixarchy.devenv
    ```
-   Then enable it once: `omarchy plugin enable nixarchy.devenv`.
+   The command must be on the **shell's** PATH (read it from
+   `/proc/<quickshell pid>/environ`); `~/.local/bin` usually is, so a symlink
+   to `nix build .#cli -o <gcroot>` works. Then `omarchy-shell shell
+   rescanPlugins` and enable it once: `omarchy plugin enable nixarchy.devenv`.
 2. **Restart the shell** with `omarchy-restart-shell`, then wait until
    `omarchy-shell shell ping` answers.
 3. **Check the log for errors.** Get the instance from `qs list --all`, then run
@@ -98,9 +100,14 @@ d=$(mktemp -d) && git clone -q . "$d/p" && rm -rf "$d/p/.git" && omarchy plugin 
    - the popup: `omarchy shell nixarchy.devenv.bar open`.
 5. **Confirm what is up** with `hyprctl layers -j`. The menu's namespace is
    `nixarchy-devenv-menu`.
-6. **Test environments:** create them under a `mktemp -d` root, name them `t1`,
-   `t2` and so on, and delete them from the plugin when done. Never point a
-   delete test at a real project.
+6. **Test environments:** create them under a `mktemp -d` root inside an
+   existing project root (so no setting changes), name them `t1`, `t2` and so
+   on, and remove them from the plugin when done. Never point a removal test
+   at a real project.
+7. **Drive keys only while nobody else is typing.** The menu takes the
+   keyboard exclusively: a person typing elsewhere types into the form. Check
+   `hyprctl layers -j` for `nixarchy-devenv-menu` before every `wtype`, and stop
+   the moment the screen shows input you did not send.
 
 ## Retaking the captures
 
@@ -129,12 +136,24 @@ the sibling plugins (distrobox, microvm, podman):
 - **No `pacman` or `yay`**, not even in comments. nixarchy fails the rebuild on them.
 - **A new runtime file goes in the `files` list in `flake.nix`**, or it is not in
   the package.
+- **`gc` is not a legal QML method name**: it is the engine's own garbage
+  collector (the plugin failed to load until `runGc`).
 - **Run external commands by name from `PATH`.** Never wrap or bundle them. A
   missing command fails silently inside a QML `Process`, so document it as a
   requirement. `devenv` especially: it bundles its own Nix, and a machine that
   never asked for it must not get that closure through this plugin.
 - **Argv arrays only, never `sh -c`.** Every command is built in `Model.js` as an
-  array, and returns `null` on invalid input.
+  array, and returns `null` on invalid input. The working directory is set with
+  `env -C DIR` in the argv: `omarchy-launch-tui` goes through `setsid`,
+  `uwsm-app` and `xdg-terminal-exec`, and nothing promises a cwd survives that.
+- **Settings types are what Setup renders:** boolean, enum, integer, path,
+  string. There is no list type, so `projectRoots` is a `:`-separated string.
+- **Roots are resolved, rows are canonical.** `list` walks roots with `find -H`
+  (a symlinked root is followed, nothing below it is) and reports `roots` and
+  `rootMap`. Compare canonical with canonical; `rootMap` is for display only.
+- **`devenv processes list` prints progress next to the table** when run by a
+  program. Only `name status restarts: N` rows are processes; anything else is
+  `unknown`, never `running`.
 - **One mutation at a time, via the singleton.** Create, update, up/down, gc, allow,
   revoke and delete are refused while another mutation runs, from either surface.
   Listing never locks.
@@ -178,7 +197,7 @@ These rules are specific to devenv:
     deletes: canonical path, no symlink escape, not `$HOME`, not `/`, not a
     project root or an ancestor of one, unchanged since it was confirmed, and
     no processes running or in an unknown state.
-  - `.envrc` is removed only if it is byte-identical to what devenv writes.
+  - `.envrc` is never removed: this tool writes none, so none can be ours.
   - Every refusal has a filesystem test, and `Model.js` pre-checks have Node
     tests.
 - **Create needs an absent destination.** The GUI creates a new directory and
@@ -225,7 +244,9 @@ issue number.
 ## Known follow-ups
 
 - nixarchy integration, default-on (olafkfreund/nixarchy#802). This has its own
-  intent, spec and plan in that repo.
+  intent, spec and plan in that repo. It removes nixarchy's leaky
+  `devenv-presets` runner.
+- Android as a template (it needs a `devenv.yaml` capability for the unfree SDK).
 - Rich project templates (AGENTS.md, skills, MCP) for non-cloud stacks, in the style
   of cloud-projects-templates.
 - Environments bound with `devenv --from` (no local `devenv.nix`).
