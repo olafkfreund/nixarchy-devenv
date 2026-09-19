@@ -386,9 +386,13 @@ cmd_status() {
     return
   fi
   out=$(cd "$dir" && timeout "${NIXARCHY_DEVENV_STATUS_TIMEOUT:-10}" devenv processes list 2>&1) || rc=$?
-  if [ "$rc" = 0 ] && [ -n "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
-    # `name   status restarts: N`, one per line.
-    printf '%s\n' "$out" | jq -R -s '
+  # A process row is `name   status restarts: N`. Anything else in the output
+  # is devenv's progress on stderr ("• Validating lock", "✓ …"), which is not
+  # a process and must not become one.
+  local rows
+  rows=$(printf '%s\n' "$out" | grep -E '^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+restarts:' || true)
+  if [ "$rc" = 0 ] && [ -n "$rows" ]; then
+    printf '%s\n' "$rows" | jq -R -s '
       {state: "running", devenv: true,
        processes: (split("\n") | map(select(test("\\S")) | capture("^(?<name>\\S+)\\s+(?<status>\\S+)")?) )}'
   elif [ "$rc" != 124 ] && printf '%s' "$out" | grep -q 'No process manager is running'; then

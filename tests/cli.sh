@@ -196,6 +196,8 @@ expect 1 "list without --json" -- "$cli" list
 S=$(fresh)
 STUB_PROCESSES=running expect 0 "status running" -- with_devenv env STUB_PROCESSES=running "$cli" status --json "$S"
 jq -e '.state == "running" and (.processes | map(.name) == ["web","db"])' "$root/out" >/dev/null || bad "status: running parsed"
+expect 0 "status: progress only, exit 0" -- with_devenv env STUB_PROCESSES=noise "$cli" status --json "$S"
+jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: exit 0 with no process rows is unknown"
 expect 0 "status stopped" -- with_devenv env STUB_PROCESSES=stopped "$cli" status --json "$S"
 jq -e '.state == "stopped"' "$root/out" >/dev/null || bad "status: stopped"
 expect 0 "status hang" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" status --json "$S"

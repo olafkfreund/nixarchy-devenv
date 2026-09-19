@@ -24,7 +24,10 @@ NIX
     case "${STUB_PROCESSES:-stopped}" in
       # The two answers devenv 2.3.1 gives, measured: a table with exit 0,
       # or this message with exit 1.
-      running) printf 'web                            ready restarts: 0\ndb                             running restarts: 1\n' ;;
+      # Run by a program rather than a terminal, devenv also prints its
+      # progress on stderr; only the rows with restarts: are processes.
+      running) printf '• Validating lock\n✓ Validating lock in 15ms\n' >&2; printf 'web                            ready restarts: 0\ndb                             running restarts: 1\n' ;;
+      noise) printf '• Validating lock\n' >&2 ;;
       stopped) echo "  x No process manager is running. Start processes first with \`devenv up -d\`" >&2; exit 1 ;;
       hang) sleep 30 ;;
       fail) echo "error: boom" >&2; exit 1 ;;
