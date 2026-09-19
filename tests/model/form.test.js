@@ -54,3 +54,22 @@ test("parent: ~ and absolute only, and no ~user", () => {
 test("formSummary names the job", () => {
   eq(Model.formSummary(form({ template: "cloud", providers: ["aws", "gcp"] })), "create app (cloud: aws gcp)")
 })
+
+test("emptyForm starts in the first root, python, git on, allow off", () => {
+  eq(Model.emptyForm(["/home/user/Source", "/srv"], HOME), { name: "", parent: "~/Source", template: "python",
+    providers: [], git: true, allow: false })
+  eq(Model.emptyForm([], HOME).parent, "~")
+})
+
+test("formFields adds providers for a generator and locks git where it cannot be honoured", () => {
+  eq(Model.formFields(templates(), "python").map(f => f.key), ["name", "parent", "template", "git", "allow"])
+  const cloud = Model.formFields(templates(), "cloud")
+  eq(cloud.map(f => f.key), ["name", "parent", "template", "providers", "git", "allow"])
+  eq(cloud.find(f => f.key === "git").locked, true)
+  eq(Model.firstErrorIndex(cloud, { providers: "x" }), 3)
+})
+
+test("toggleProvider adds and removes", () => {
+  eq(Model.toggleProvider(["aws"], "gcp"), ["aws", "gcp"])
+  eq(Model.toggleProvider(["aws", "gcp"], "aws"), ["gcp"])
+})

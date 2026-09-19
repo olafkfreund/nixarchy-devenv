@@ -39,6 +39,11 @@ test("parseList carries warnings and the skipped count, sanitised", () => {
   eq(out.skipped, 3)
 })
 
+test("parseList keeps the canonical roots, safe ones only", () => {
+  eq(Model.parseList(list([], { roots: ["/mnt/data/Source-home", "rel", "/a/../b"] })).roots, ["/mnt/data/Source-home"])
+  eq(Model.parseList(list([])).roots, [])
+})
+
 test("parseList of garbage is an empty, not-ok list", () => {
   for (const raw of ["", "not json", "null", "[]x", undefined]) {
     const out = Model.parseList(raw)

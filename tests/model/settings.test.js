@@ -1,14 +1,14 @@
 const { test, eq, HOME, Model } = require("../harness.js")
 
-const DEFAULTS = { projectRoots: ["~/Source"], refreshIntervalSec: 60, terminalEditor: "", hideWhenEmpty: false }
+const DEFAULTS = { projectRoots: "~/Source:~/Projects", refreshIntervalSec: 60, terminalEditor: "", hideWhenEmpty: false }
 const NL = String.fromCharCode(10)
 
 test("settingsFor reads the bar entry, type-checked", () => {
-  const bar = { layout: { right: ["clock", { id: "nixarchy.devenv", refreshIntervalSec: 30, hideWhenEmpty: "yes", projectRoots: ["/x"] }] } }
+  const bar = { layout: { right: ["clock", { id: "nixarchy.devenv", refreshIntervalSec: 30, hideWhenEmpty: "yes", projectRoots: "/x" }] } }
   const s = Model.settingsFor(bar, "nixarchy.devenv", DEFAULTS)
   eq(s.refreshIntervalSec, 30)
   eq(s.hideWhenEmpty, false)
-  eq(s.projectRoots, ["/x"])
+  eq(s.projectRoots, "/x")
 })
 
 test("settingsFor accepts Qt sequence wrappers, which are not arrays", () => {
@@ -27,6 +27,8 @@ test("rootsFor expands ~, dedupes, and rejects what is not a safe absolute path"
   eq(out.rejected, ["rel", "~root/x", "/a/../b", "/a" + NL + "b"])
   eq(Model.rootsFor({ length: 1, 0: "~" }, HOME).roots, ["/home/user"])
   eq(Model.rootsFor(undefined, HOME).roots, [])
+  eq(Model.rootsFor("~/Source:/srv::  :~/Source", HOME).roots, ["/home/user/Source", "/srv"])
+  eq(Model.rootsFor(Model.DEFAULT_ROOTS, HOME).roots, ["/home/user/Source", "/home/user/Projects"])
 })
 
 test("editorWords: setting, then $EDITOR, then nvim; plain words only", () => {

@@ -10,7 +10,7 @@
 // CLI repeats every one that protects a file, right before it acts.
 
 var Glyph = {
-  env: String.fromCodePoint(0xF0493),      // nf-md-console-network
+  env: String.fromCodePoint(0xF1105),      // nf-md-nix
   enter: String.fromCodePoint(0xF018D),
   edit: String.fromCodePoint(0xF03EB),
   play: String.fromCodePoint(0xF040A),
@@ -199,12 +199,16 @@ function isAncestorOrSelf(ancestor, path) {
 // not be safe as an argv element. What is dropped comes back in `rejected` so
 // the settings problem can be said out loud rather than silently shrink the
 // list.
+// The setting is a string separated by ':' like PATH -- the shell's settings
+// form has no list type -- but a list is accepted too.
 function rootsFor(setting, home) {
-  var list = setting && typeof setting === "object" && typeof setting.length === "number" ? setting : []
+  var list = typeof setting === "string" ? setting.split(":")
+    : setting && typeof setting === "object" && typeof setting.length === "number" ? setting : []
   var out = []
   var rejected = []
   for (var i = 0; i < list.length; i++) {
     var raw = str(list[i])
+    if (!trim(raw)) continue
     var p = stripSlash(expandHome(raw, home))
     if (!isAbsPath(p)) { rejected.push(raw); continue }
     if (out.indexOf(p) === -1) out.push(p)
@@ -222,7 +226,7 @@ function parseJson(raw) {
 // safe default, so an older or newer CLI never breaks the list.
 function parseList(raw) {
   var data = parseJson(raw)
-  var out = { rows: [], warnings: [], skipped: 0, ok: false }
+  var out = { rows: [], roots: [], warnings: [], skipped: 0, ok: false }
   if (!data || typeof data !== "object") return out
   out.ok = true
   var rows = data.rows && data.rows.length !== undefined ? data.rows : []
@@ -240,6 +244,10 @@ function parseList(raw) {
       mtime: typeof r.mtime === "number" ? r.mtime : 0
     })
   }
+  // The roots as the CLI resolved them (~/Source may be a symlink). Removal
+  // compares canonical rows against these, never against the raw setting.
+  var roots = data.roots && data.roots.length !== undefined ? data.roots : []
+  for (var k = 0; k < roots.length; k++) if (isAbsPath(roots[k])) out.roots.push(stripSlash(roots[k]))
   var warnings = data.warnings && data.warnings.length !== undefined ? data.warnings : []
   for (var w = 0; w < warnings.length; w++) out.warnings.push(sanitize(warnings[w], 200))
   out.skipped = typeof data.skipped === "number" ? data.skipped : 0
@@ -534,7 +542,7 @@ function settingsFor(barConfig, id, defaults) {
   return result
 }
 
-var DEFAULT_ROOTS = ["~/Source", "~/Projects"]
+var DEFAULT_ROOTS = "~/Source:~/Projects"
 
 // ---------------------------------------------------------------- editor
 
@@ -658,6 +666,49 @@ function validateForm(form, templates, home) {
   if (!git) argv.push("--no-git")
   argv.push("--parent", parent, "--name", name, t.id)
   return { ok: true, errors: {}, argv: argv.concat(providers), path: parent + "/" + name }
+}
+
+// A fresh form: a python project in the first root, git on, allow off.
+function emptyForm(roots, home) {
+  var list = roots || []
+  return {
+    name: "",
+    parent: list.length ? tildePath(list[0], home) : "~",
+    template: "python",
+    providers: [],
+    git: true,
+    allow: false
+  }
+}
+
+// The rows the form shows, in order. Providers only for a generator.
+function formFields(templates, templateId) {
+  var t = templateById(templates, templateId)
+  var out = [
+    { key: "name", kind: "text", label: "Name", hint: "my-app" },
+    { key: "parent", kind: "text", label: "Create it in", hint: "~/Source" },
+    { key: "template", kind: "template", label: "Template" }
+  ]
+  if (t && t.kind === "generator") out.push({ key: "providers", kind: "providers", label: "Providers" })
+  out.push({ key: "git", kind: "bool", label: "git init",
+    hint: t && !t.honoursGit ? "This template always runs git init" : "A new repository, unless it is already inside one",
+    locked: !!(t && !t.honoursGit) })
+  out.push({ key: "allow", kind: "bool", label: "Allow automatic activation",
+    hint: "Runs devenv allow: the environment activates when you cd in. Off: use devenv shell." })
+  return out
+}
+
+function firstErrorIndex(fields, errors) {
+  for (var i = 0; i < fields.length; i++) if (errors[fields[i].key]) return i
+  return -1
+}
+
+function toggleProvider(list, provider) {
+  var out = Array.prototype.slice.call(list || [])
+  var at = out.indexOf(provider)
+  if (at === -1) out.push(provider)
+  else out.splice(at, 1)
+  return out
 }
 
 function formSummary(form) {

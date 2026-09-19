@@ -183,6 +183,12 @@ jq -e '.rows == [] and .skipped == 0' "$out" >/dev/null || bad "list: DEVENV_HOM
 mkdir -p "$root/xdg2/devenv" && echo "{\"path\":\"$O/outside\"}" >"$root/xdg2/devenv/allowed"
 expect 0 "list with XDG_DATA_HOME" -- env XDG_DATA_HOME="$root/xdg2" "$cli" list --json
 jq -e '.rows | length == 1' "$out" >/dev/null || bad "list: XDG_DATA_HOME honoured"
+# A root that is itself a symlink is followed; nothing below it is.
+ln -s "$L" "$root/linkroot"
+expect 0 "list via a symlinked root" -- "$cli" list --json --root "$root/linkroot"
+jq -r '.rows[].path' "$out" | grep -qxF "$L/a" || bad "list: a symlinked root is followed, rows are canonical"
+jq -e --arg l "$L" '.roots == [$l]' "$out" >/dev/null || bad "list: roots reported canonically"
+! jq -r '.rows[].path' "$out" | grep -q "/link$" || bad "list: symlinks below a root still not followed"
 expect 1 "list without --json" -- "$cli" list
 
 # ---- status -------------------------------------------------------------------

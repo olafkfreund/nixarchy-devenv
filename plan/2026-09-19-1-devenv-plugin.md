@@ -517,3 +517,20 @@ Every other row shows `·`, meaning not checked.
   gives every devenv command the same form.
 - **Step 7: an editor setting that contains any control character is
   ignored**, and the next candidate is used ($EDITOR, then nvim).
+- **Step 8: `projectRoots` is a `:`-separated string** (default
+  `~/Source:~/Projects`). Every installed and bundled manifest uses only
+  boolean, enum, integer, path and string, so Setup has no list field to
+  render. `Model.rootsFor` accepts both a string and a list.
+- **Steps 8–11 are written together.** The QML files depend on one another,
+  and only load, and can only be checked live, as a set. Each step's
+  checkpoint is still run and recorded before the step is called done.
+- **Step 9, found live: roots are followed with `find -H`, not `-P`.**
+  `~/Source` is a symlink on p620, and `-P` does not follow a symlinked
+  starting point, so the most common root listed nothing. `-H` follows the
+  root only, never anything below it.
+- **Step 9, found live: `list` reports canonical `roots`,** and removal
+  compares rows against those, not against the raw setting. A symlinked root
+  compared with canonical row paths would never match "is a root or an
+  ancestor of one", which is a removal safety check.
+- **Step 9: `gc()` is renamed `runGc()`.** `gc` is the QML engine's own
+  global function and is an illegal method name in QML.

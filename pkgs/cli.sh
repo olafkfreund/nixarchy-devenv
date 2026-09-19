@@ -307,14 +307,19 @@ cmd_list() {
   : >"$tmp/warnings"
   : >"$tmp/allowed"
 
-  # Roots: -P never follows a symlink, and the pruned directories are where
-  # vendored copies of other people's devenv.nix live.
+  # Roots: -H follows a symlink only when it IS the root (~/Source is often
+  # one) and never below it. The pruned directories are where vendored copies
+  # of other people's devenv.nix live. Each root is also reported
+  # canonically: rows are canonical paths, and "is this a root" has to compare
+  # like with like.
+  : >"$tmp/roots"
   for r in "${roots[@]}"; do
     if [ ! -d "$r" ] || [ ! -r "$r" ] || [ ! -x "$r" ]; then
       echo "$r is missing or unreadable" >>"$tmp/warnings"
       continue
     fi
-    find -P "$r" -maxdepth 3 \
+    realpath -e -- "$r" >>"$tmp/roots"
+    find -H "$r" -maxdepth 3 \
       \( -name .git -o -name node_modules -o -name .devenv -o -name .direnv \) -prune \
       -o -name devenv.nix -type f -printf '%h\0' 2>/dev/null >>"$tmp/candidates"
   done
@@ -361,8 +366,10 @@ cmd_list() {
   jq -n \
     --slurpfile rows "$tmp/rows" \
     --rawfile warnings "$tmp/warnings" \
+    --rawfile roots "$tmp/roots" \
     --argjson skipped "$skipped" \
-    '{rows: $rows, warnings: ($warnings | split("\n") | map(select(. != ""))), skipped: $skipped}'
+    '{rows: $rows, roots: ($roots | split("\n") | map(select(. != "")) | unique),
+      warnings: ($warnings | split("\n") | map(select(. != ""))), skipped: $skipped}'
 }
 
 # ---- status -------------------------------------------------------------------

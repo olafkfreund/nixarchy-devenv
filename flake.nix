@@ -7,13 +7,51 @@
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAll = nixpkgs.lib.genAttrs systems;
+
+      manifest = builtins.fromJSON (builtins.readFile ./manifest.json);
+
+      # Exactly what the shell loads. The CLI is its own package; the
+      # artifacts, tests and docs are for whoever reads the repository.
+      files = [
+        ./manifest.json
+        ./qmldir
+        ./LICENSE
+        ./Model.js
+        ./Panel.qml
+        ./Menu.qml
+        ./DevenvState.qml
+        ./DevenvView.qml
+        ./EnvList.qml
+        ./CreateForm.qml
+        ./LogView.qml
+        ./ShortcutSheet.qml
+      ];
+
+      pluginFor = pkgs:
+        # runCommand and plain copies, deliberately: omarchy-plugin-validate
+        # refuses any symlink inside a plugin folder, so symlinkJoin or a
+        # linkFarm would fail validation at rebuild time.
+        pkgs.runCommand "nixarchy-devenv-plugin-${manifest.version}"
+          {
+            meta = with pkgs.lib; {
+              description = "Omarchy plugin: list, create, enter and manage devenv environments from the bar and a key";
+              homepage = "https://github.com/olafkfreund/nixarchy-devenv";
+              license = licenses.mit;
+              platforms = platforms.linux;
+            };
+          }
+          ''
+            mkdir -p "$out"
+            ${nixpkgs.lib.concatMapStringsSep "\n" (f: ''cp ${f} "$out/${baseNameOf f}"'') files}
+          '';
     in
     {
       packages = forAll (system:
         let pkgs = nixpkgs.legacyPackages.${system};
         in rec {
           cli = pkgs.callPackage ./pkgs/cli.nix { };
-          default = cli;
+          plugin = pluginFor pkgs;
+          default = plugin;
         });
 
       apps = forAll (system:
@@ -54,6 +92,38 @@
               cp -r ${./tests} tests
               cp ${./Model.js} Model.js
               node tests/run.js
+              touch "$out"
+            '';
+
+          # The manifest is what the shell validates at load: a typo in it is a
+          # plugin that silently never appears.
+          plugin = let plugin = self.packages.${system}.plugin; in
+            pkgs.runCommand "nixarchy-devenv-plugin-check" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              jq -e '
+                .schemaVersion == 1
+                and .id == "nixarchy.devenv"
+                and .keepLoaded == true
+                and (.kinds | index("menu") and index("bar-widget"))
+                and .entryPoints.menu == "Menu.qml"
+                and .entryPoints.barWidget == "Panel.qml"
+              ' ${plugin}/manifest.json > /dev/null
+              for f in $(jq -r '.entryPoints[]' ${plugin}/manifest.json); do
+                test -f "${plugin}/$f" || { echo "entry point $f missing from the package" >&2; exit 1; }
+              done
+              # Without this line the bar and the menu each get their own
+              # state, and "one mutation at a time" silently stops holding.
+              grep -qx 'singleton DevenvState 1.0 DevenvState.qml' ${plugin}/qmldir \
+                || { echo "qmldir does not declare the DevenvState singleton" >&2; exit 1; }
+              if [ -n "$(find ${plugin} -mindepth 1 -type l)" ]; then
+                echo "symlink inside the package" >&2; exit 1
+              fi
+              if grep -nwE 'pacman|yay' ${plugin}/*.qml ${plugin}/*.js; then
+                echo "Arch package manager reference above" >&2; exit 1
+              fi
+              # A literal colour survives a theme switch and looks wrong.
+              if grep -nE '"#[0-9a-fA-F]{3,8}"' ${plugin}/*.qml; then
+                echo "hardcoded colour above; use a Color.* token" >&2; exit 1
+              fi
               touch "$out"
             '';
 
