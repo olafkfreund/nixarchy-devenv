@@ -641,7 +641,6 @@ FocusScope {
       z: 9
       visible: root.removeOpen
       color: Color.popups.background
-      opacity: 0.98
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -673,7 +672,7 @@ FocusScope {
 
           Text {
             width: parent.width
-            text: root.removeEnv ? root.removeEnv.path : ""
+            text: root.removeEnv ? Model.displayPath(root.removeEnv.path, DevenvState.rootMap, DevenvState.hostHome) : ""
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily

@@ -538,6 +538,12 @@ Every other row shows `·`, meaning not checked.
   root with its canonical path, so a row under a symlinked root reads
   `~/Source/GitHub` rather than `/mnt/data/Source-home/GitHub`. This is
   display only: every command still gets the canonical path.
+- **Step 16: four stills and one recording**, not seven stills: `menu`,
+  `form`, `providers` and `remove`, plus `rec-create` (WebM and MP4). The log
+  appears in the recording, and the Omarchy menu row still is left for #802,
+  where the row lands in nixarchy's defaults. Found while capturing: the
+  removal chooser now draws fully opaque (at 0.98 the list showed through)
+  and shows the path through `displayPath`.
 
 ## Verification log
 
@@ -555,3 +561,14 @@ Every other row shows `·`, meaning not checked.
     `t3` was typed. The root survived.
   - Afterwards the test root was removed, the real allow list was back to its
     80 original entries, and no test process was left.
+- **Step 16, captures (2026-09-19):**
+  - `capture.sh --setup` put five `demo-*` projects under a throwaway root,
+    and pointed the widget's roots at it through `shell.json`. No real
+    project name appears in any capture.
+  - The recording took three takes. The first lost the dash in `demo-new`
+    (`wtype -` reads the dash as an option) and entered the wrong row; the
+    second carried a stale footer from the first.
+  - After `--teardown`, `shell.json` and `omarchy-menu.jsonc` match their
+    snapshot checksums, workspaces and do-not-disturb are restored, the allow
+    list is back to its 80 entries, and no demo process is left.
+    `docs/img` is 2.7 MB.
