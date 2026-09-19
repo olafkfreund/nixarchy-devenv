@@ -17,7 +17,7 @@ surfaces:
 - **a bar widget**, whose popup sits under the glyph (`Panel.qml`);
 - **a full-screen keyboard menu** (`Menu.qml`), on `SUPER + ALT + E`.
 
-It lists every devenv environment on the machine and can:
+It lists the devenv environments it finds under your project roots and can:
 
 - create a new project from a template (language presets, mobile, cloud, or yours);
 - enter an environment in a terminal, and edit its `devenv.nix`;
@@ -51,7 +51,7 @@ nixarchy. The user guide is [`docs/usage.md`](docs/usage.md). The design is in
 | `Panel.qml` | The bar widget host: glyph, `KeyboardPanel` popup, and IPC target `nixarchy.devenv.bar`. |
 | `Menu.qml` | The full-screen menu host (manifest kind `menu`). |
 | `manifest.json` | Plugin id `nixarchy.devenv`, kinds `menu` + `bar-widget`, `keepLoaded: true`, settings schema. |
-| `data/templates.nix` | The template catalogue: `preset` entries (devenv option lines) and `flake` entries (template sources such as cloud-projects-templates). |
+| `data/templates.nix` | The template catalogue: `preset` entries (devenv option lines) and `generator` entries (pinned template sources such as cloud-projects-templates, with declared capabilities). |
 | `pkgs/cli.nix` | The `nixarchy-devenv` CLI (`list --json`, `templates --json`, `init`). It moved here from nixarchy's `pkgs/dev-init.nix`. |
 | `devenv-binds.lua` | The key, loaded from `~/.config/hypr/bindings.lua` with `pcall(require, "hypr.devenv-binds")`. |
 | `flake.nix` | The package (an explicit `files` list, copied as real files), the CLI, `homeManagerModules.default` (the name microvm uses), `checks`, and the `templates-check` runner. |
