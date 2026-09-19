@@ -47,6 +47,16 @@
               touch "$out"
             '';
 
+          # Model.js carries all the plugin's logic, and runs under plain Node.
+          model = pkgs.runCommand "nixarchy-devenv-model-check"
+            { nativeBuildInputs = [ pkgs.nodejs ]; }
+            ''
+              cp -r ${./tests} tests
+              cp ${./Model.js} Model.js
+              node tests/run.js
+              touch "$out"
+            '';
+
           # omarchy-plugin-validate refuses a symlink anywhere in a plugin, and
           # `omarchy plugin add` clones this repository AS the plugin folder.
           repo = pkgs.runCommand "nixarchy-devenv-repo-check" { } ''

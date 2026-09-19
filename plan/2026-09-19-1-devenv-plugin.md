@@ -510,3 +510,10 @@ Every other row shows `·`, meaning not checked.
   The Node test check arrives in step 7. `homeManagerModules` arrives in
   step 12, with `devenv-binds.lua`. Declaring them earlier would fail
   `nix flake check` on files that do not exist yet.
+- **Step 7: working directories are set with `env -C DIR`** in the argv,
+  not `Process.workingDirectory`. `omarchy-launch-tui` runs through `setsid`,
+  `uwsm-app` and `xdg-terminal-exec`, and nothing promises the working
+  directory survives that chain. `env -C` is coreutils, needs no shell, and
+  gives every devenv command the same form.
+- **Step 7: an editor setting that contains any control character is
+  ignored**, and the next candidate is used ($EDITOR, then nvim).

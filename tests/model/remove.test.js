@@ -1,0 +1,68 @@
+const { test, eq, ok, env, HOME, Model } = require("../harness.js")
+
+const ROOTS = ["/home/user/Source", "/srv/projects"]
+const STOPPED = { state: "stopped", devenv: true, processes: [] }
+const e = o => env(o)
+const refuse = (o, tier, status, typed) => Model.removeRefusal(e(o), tier || "files", ROOTS, HOME, status === undefined ? STOPPED : status, typed)
+
+test("a stopped environment under a root may lose its devenv files", () => {
+  eq(refuse({}), "")
+  eq(refuse({}, "state"), "")
+})
+
+test("revoke is always allowed: it deletes nothing", () => {
+  eq(refuse({ path: "/home/user" }, "revoke", null), "")
+  eq(Model.removeArgv(e(), "revoke", ROOTS), ["env", "-C", "/home/user/Source/app", "devenv", "revoke"])
+})
+
+test("never /, HOME, a root, or anything containing a root", () => {
+  ok(/\//.test(refuse({ path: "/" })))
+  ok(/home directory/.test(refuse({ path: "/home/user" })))
+  ok(/project root/.test(refuse({ path: "/home/user/Source" })))
+  ok(/project root/.test(refuse({ path: "/srv" })))
+  ok(/project root/.test(refuse({ path: "/srv/projects" })))
+  eq(refuse({ path: "/srv/projects-old/x" }), "")
+})
+
+test("running or unknown processes block every deleting tier", () => {
+  for (const tier of ["files", "state", "folder"]) {
+    ok(/stop them/.test(refuse({}, tier, { state: "running", devenv: true, processes: [] }, "app")))
+    ok(/Could not tell/.test(refuse({}, tier, { state: "unknown", devenv: true, processes: [] }, "app")))
+    ok(/Could not tell/.test(refuse({}, tier, null, "app")))
+  }
+})
+
+test("without devenv there is nothing that could be running", () => {
+  eq(refuse({}, "files", { state: "unknown", devenv: false, processes: [] }), "")
+})
+
+test("the folder tier needs the name typed exactly", () => {
+  ok(/Type the folder name/.test(refuse({}, "folder", STOPPED, "")))
+  ok(/Type the folder name/.test(refuse({}, "folder", STOPPED, "App")))
+  eq(refuse({}, "folder", STOPPED, " app "), "")
+})
+
+test("a row with no device number is refused: refresh first", () => {
+  ok(/Refresh/.test(refuse({ dev: undefined })))
+})
+
+test("unknown tiers and missing environments are refused", () => {
+  ok(Model.removeRefusal(null, "files", ROOTS, HOME, STOPPED, ""))
+  ok(Model.removeRefusal(e(), "everything", ROOTS, HOME, STOPPED, ""))
+  eq(Model.removeArgv(e(), "everything", ROOTS), null)
+})
+
+test("removeArgv confirms the exact path, device and roots", () => {
+  eq(Model.removeArgv(e(), "state", ROOTS), ["nixarchy-devenv", "remove", "--tier", "state",
+    "--confirm", "/home/user/Source/app", "--dev", "2049",
+    "--root", "/home/user/Source", "--root", "/srv/projects", "/home/user/Source/app"])
+  eq(Model.removeArgv(e(), "files", ["rel"]), null)
+  eq(Model.removeArgv(e({ dev: -1 }), "files", ROOTS), null)
+})
+
+test("the dialog names the tier and the full path", () => {
+  const m = Model.removeMessage(e(), "files", HOME)
+  ok(m.indexOf("~/Source/app") !== -1)
+  ok(m.indexOf(".devenv/state") !== -1)
+  ok(/every project/.test(Model.gcMessage()))
+})
