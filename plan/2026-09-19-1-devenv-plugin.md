@@ -488,3 +488,19 @@ Every other row shows `·`, meaning not checked.
   extra `.devenv-template` file. They keep working without it.
 - **Repo:** revert the merge commit. Pages falls back to the previous build,
   or none.
+
+## Deviations
+
+- **Steps 1–2** went into one commit (`d568753`) instead of two.
+- **Step 3: the CLI script is `pkgs/cli.sh`**, which `pkgs/cli.nix` reads with
+  `builtins.readFile` after prepending `share=<store path>`. It is a plain
+  file so that shellcheck and `tests/cli.sh` see the real script.
+- **Step 3: `tests/stub/{devenv,nix}`** record their calls and stand in for
+  devenv and nix. `tests/cli.sh` runs on a minimal PATH built from symlinked
+  tools, so it can never reach the user's real devenv, nix or network. (Found
+  the hard way: an early run inherited PATH, and executed the real cloud
+  generator in a temp directory.)
+- **Step 3: project names must start with a letter, digit or `_`.** A name
+  like `-x` would read as an option to later commands.
+- **Step 3: `--no-git` for a generator whose `honours_git` is false exits 1**,
+  rather than silently running `git init`.
