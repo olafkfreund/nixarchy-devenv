@@ -21,9 +21,12 @@ It lists every devenv environment on the machine and can:
 
 - create a new project from a template (language presets, mobile, cloud, or yours);
 - enter an environment in a terminal, and edit its `devenv.nix`;
-- start and stop its processes;
-- update its lock, and run gc;
-- allow it, revoke it, or delete it.
+- start its processes detached, and stop them;
+- update its lock;
+- allow or revoke automatic activation;
+- remove it, in consent tiers (see Rules).
+
+It can also run a user-wide `devenv gc`, labelled as such.
 
 Update, create and process output stream into the panel.
 
@@ -51,7 +54,7 @@ nixarchy. The user guide is [`docs/usage.md`](docs/usage.md). The design is in
 | `data/templates.nix` | The template catalogue: `preset` entries (devenv option lines) and `flake` entries (template sources such as cloud-projects-templates). |
 | `pkgs/cli.nix` | The `nixarchy-devenv` CLI (`list --json`, `templates --json`, `init`). It moved here from nixarchy's `pkgs/dev-init.nix`. |
 | `devenv-binds.lua` | The key, loaded from `~/.config/hypr/bindings.lua` with `pcall(require, "hypr.devenv-binds")`. |
-| `flake.nix` | The package (an explicit `files` list, copied as real files), the CLI, `homeModules.default`, `checks`, and the `templates-check` runner. |
+| `flake.nix` | The package (an explicit `files` list, copied as real files), the CLI, `homeManagerModules.default` (the name microvm uses), `checks`, and the `templates-check` runner. |
 | `share/omarchy-menu.jsonc` | The Omarchy menu row for users who are not on nixarchy. |
 | `tests/` | Node tests for `Model.js` (`tests/run.js`). |
 | `docs/` | The GitHub Pages site (`docs/index.md`, `docs/usage.md`) and `capture.sh`. |
@@ -155,18 +158,41 @@ These rules are specific to devenv:
   before release. It is not pure, so `nix flake check` cannot run it for you.
 - **The plugin never evaluates Nix to draw.** Templates come from the JSON index
   built into the package. The environment list comes from `nixarchy-devenv list
-  --json`, which reads devenv's `allowed` file and the configured roots. It does
-  not run devenv.
+  --json`. That command scans the configured roots without following symlinks,
+  and uses devenv's `allowed` file only as a hint. Entries whose directory is
+  gone are hidden, never removed from devenv's database. A state we cannot
+  verify (template origin, process state) is shown as "custom" or "unknown",
+  never guessed.
 - **Consent stays with the user.** `devenv allow` runs only from the create form's
-  allow toggle or the explicit allow action. Never pre-seed it, and never allow a
-  directory as a side effect.
-- **Delete is two-tier and bounded.** The default removes only devenv's files
-  (`devenv.nix`, `devenv.yaml`, `devenv.lock`, `.devenv/`, `.envrc` when devenv
-  wrote it) and revokes the allow. Removing the folder needs the name typed. Every
-  delete path is checked in `Model.js` to be a listed environment, not `$HOME`,
-  `/`, or a project root. Each of those refusals has a Node test.
-- **Create never overwrites.** It refuses an existing `devenv.nix`, as
-  `nixarchy dev init` does today, and prints the preset lines for pasting by hand.
+  "Allow automatic activation" toggle or the explicit allow action. Never pre-seed
+  it, never allow a directory as a side effect, and never re-run allow over an
+  existing allow: that can reset saved profile choices.
+- **Removal is tiered, and bounded where it executes.**
+  - Revoke is the ordinary action.
+  - "Remove devenv files" deletes `devenv.nix`, `devenv.yaml` and
+    `devenv.lock`, plus `.devenv/` **except `.devenv/state`** (databases live
+    there).
+  - Destroying state, or the folder, is a separate action with its own
+    confirmation that names the full path.
+  - The CLI, not `Model.js`, performs the authoritative checks just before it
+    deletes: canonical path, no symlink escape, not `$HOME`, not `/`, not a
+    project root or an ancestor of one, unchanged since it was confirmed, and
+    no processes running or in an unknown state.
+  - `.envrc` is removed only if it is byte-identical to what devenv writes.
+  - Every refusal has a filesystem test, and `Model.js` pre-checks have Node
+    tests.
+- **Create needs an absent destination.** The GUI creates a new directory and
+  refuses one that exists. The CLI's current-directory `init` keeps
+  `nixarchy dev init`'s contract: it refuses an existing `devenv.nix` and prints
+  the preset lines for pasting by hand.
+- **Process runs never hold the mutation lock.** `up` is `devenv up --detach`, and
+  the lock covers only its startup. Stop is always available.
+- **`templates-check` is hermetic.** It isolates `HOME`, `XDG_*` and `DEVENV_*`, and
+  asserts the invoking user's `allowed` file is unchanged. The runner it replaces
+  in nixarchy isolated only `HOME` and filled the real allow list.
+- **Catalogue entries declare capabilities.** A `generator` entry (such as
+  cloud-projects-templates) states which form toggles it honours, and it is
+  pinned to a revision.
 - **Form fields are allowlisted.** Project names and parent paths are validated in
   `Model.validateForm`. Any new field needs its own rule and a hostile-input test
   row.
@@ -202,3 +228,4 @@ issue number.
   intent, spec and plan in that repo.
 - Rich project templates (AGENTS.md, skills, MCP) for non-cloud stacks, in the style
   of cloud-projects-templates.
+- Environments bound with `devenv --from` (no local `devenv.nix`).

@@ -14,17 +14,20 @@ none of them is something you can see or drive from the desktop:
 - `modules/services/devenv.nix` is an opt-in service. It adds the
   `devenv hook` to bash, zsh and fish, and the devenv.cachix.org cache.
 - `nixarchy dev init <preset>` (`pkgs/dev-init.nix`) scaffolds a project from
-  9 language presets in `data/devenv-presets.nix`. The presets are react,
-  node, typescript, python, ml, jupyter, go and rust.
+  8 language presets in `data/devenv-presets.nix`: react, node,
+  typescript, python, ml, jupyter, go and rust.
 - Neovim gets `:DevenvShell` (`modules/home.nix`).
 
 That leaves these gaps next to nixarchy-distrobox and nixarchy-microvm:
 
-- **Nothing lists your environments.** devenv already records every directory
-  you allowed, in `~/.local/share/devenv/allowed`. That file has 80 entries on
-  p620, and most of them point at temp directories that no longer exist.
-  Nothing reads it, and nothing shows which projects are real, locked or
-  running processes.
+- **Nothing lists your environments.** devenv records every directory you
+  allowed, in `$XDG_DATA_HOME/devenv/allowed`, but that file is not a usable
+  list. On p620 it has 80 entries and **none of them still exists**. They look
+  like `vmtest/tmp/tmp.*/go`, one per preset name, which points at nixarchy's
+  own `devenv-presets` runner writing into the real trust database: it
+  isolates `HOME` but inherits `XDG_DATA_HOME` (`flake.nix:918`). Nothing shows
+  which projects are real, which have a lockfile, or which are running
+  processes.
 - **Managing an environment is manual.** Entering, editing, updating, starting
   processes (`devenv up`), garbage-collecting, revoking an allow and deleting
   are all terminal commands you have to remember, one project at a time.
@@ -44,36 +47,48 @@ That leaves these gaps next to nixarchy-distrobox and nixarchy-microvm:
   as nixarchy-distrobox and nixarchy-microvm: a bar widget with a keyboard
   popup, and a full-screen menu on **Super+Alt+E**. It is reachable from the
   Omarchy menu under Apps.
-- **It lists every devenv environment on the machine.** The list comes from
-  devenv's own allow list plus configurable project roots. Stale entries are
-  dropped. Each row shows its template, allow state, lock state and whether
-  processes are running.
+- **It lists the devenv environments it can find.** It scans configurable
+  project roots and adds devenv's allow list as a hint. Missing entries are
+  hidden, not deleted from devenv's database. Each row shows its template
+  ("custom" when unknown), whether it is allowed for automatic activation,
+  whether a lockfile is present, and its process state ("unknown" when
+  that cannot be verified).
 - **From the list, with one key each:**
   - enter the environment in a terminal;
   - edit `devenv.nix`;
-  - start and stop processes;
+  - start processes detached, and stop them, with stop always available;
   - update the lock, with output streamed into the panel;
-  - gc;
-  - allow or revoke;
+  - allow or revoke automatic activation;
   - copy the path;
-  - delete. By default delete removes only devenv's files. Removing the whole
-    folder needs an explicit, typed confirmation.
+  - remove the environment. The ordinary action is revoke. Removing devenv's
+    files is a separate, confirmed action that preserves `.devenv/state`
+    (databases live there). Destroying state, or the whole folder, is a third
+    action with its own consent.
+- **A user-wide `devenv gc`**, labelled as user-wide. It is not presented as
+  a per-project action, because devenv's gc has no project scope.
 - **A create form.** It asks for a name, a parent directory and a template
   from one grouped picker (Languages, Mobile, Cloud, Yours), plus whether to
-  run `git init` and whether to allow the directory. The result is a working,
-  pinned project.
+  run `git init` and whether to allow automatic activation. The result is a
+  scaffold that pins itself on its first activation. The form says so,
+  including that the first activation needs the network.
 - **The template catalogue lives in this repo.**
-  - The existing 9 presets move here.
-  - New presets are added: Java (Gradle and Maven), Kotlin, Android, Flutter
-    and Dart, .NET, PHP and Ruby.
-  - `cloud-projects-templates` is offered as a template source, and you can
-    pick several providers at once.
+  - The existing 8 presets move here.
+  - New presets are added: Java (Gradle and Maven), Kotlin, Flutter and Dart,
+    .NET, PHP and Ruby. Android needs `devenv.yaml` changes (unfree SDK), so
+    it is either a template with a YAML capability or a follow-up task (see
+    Open questions).
+  - `cloud-projects-templates` is offered as a *generator* entry, not a plain
+    flake template. You can pick several providers at once. The form shows
+    which of its toggles the generator cannot honour; for example, it always
+    runs `git init`.
   - Personal templates come from `~/.config/nixarchy-devenv/templates/`.
   - A `nixarchy-devenv` CLI does the work (`list`, `templates`, `init`). The
     plugin calls it, and it is usable on its own.
 - **nixarchy ships it on by default** (tracked in olafkfreund/nixarchy#802).
   - It is installed, and enabled once, with the key and the menu row.
-  - `nixarchy dev …` keeps working and dispatches to the new CLI.
+  - `nixarchy dev …` keeps working and dispatches to the new CLI, keeping
+    today's preset names, help and exit codes.
+  - Neovim's `:DevenvShell` stays.
   - nixarchy's own dev-init, presets and preset runner are removed, so
     there is one owner.
   - A user can turn it off with one line.
@@ -116,11 +131,23 @@ That leaves these gaps next to nixarchy-distrobox and nixarchy-microvm:
   built into the package, and runs devenv and nix only when you ask for an
   action.
 - **devenv's consent model stays interactive.** `devenv allow` runs only
-  because the user asked for it: through the create form toggle or an
-  explicit allow action. Nothing pre-seeds consent.
-- **Delete never removes project source by default.** Deleting the folder
-  needs a typed confirmation, and paths outside the listed environment are
-  refused.
+  because the user asked for it: through the create form's "Allow automatic
+  activation" toggle or an explicit allow action. The migrated initializer
+  loses today's unconditional `devenv allow` (`pkgs/dev-init.nix:152`), and
+  an existing allow or profile choice is never rewritten.
+- **Destruction is bounded where it runs, not only in the UI.** The CLI
+  re-checks the target before it deletes anything: canonical path, no
+  symlink escape, not `$HOME`, `/` or a project root or its ancestor, and
+  unchanged since it was confirmed. The confirmation names the full path. It
+  refuses while processes are running or their state is unknown.
+  `.devenv/state` and project source are never removed without their own
+  consent.
+- **The template runner is hermetic.** It isolates `HOME`, `XDG_*` and
+  `DEVENV_*`, and it verifies the real allow list is unchanged afterwards.
+- **Both install paths work.** The Nix path supplies the plugin, the CLI and
+  the catalogue together. `omarchy plugin add` clones without building, so
+  the plugin detects a missing CLI or devenv and says what to install instead
+  of failing silently.
 - **nixarchy's side is its own intent, spec and plan** in the nixarchy repo
   (#802). It starts after this spec is approved. This task changes nothing in
   nixarchy.
@@ -131,14 +158,30 @@ That leaves these gaps next to nixarchy-distrobox and nixarchy-microvm:
 ## Open questions
 
 1. **Should "on by default" also turn on `services.devenv`?** That service
-   adds the shell hook and the cache, and it pulls in devenv's own Nix, which
-   is why it is opt-in today. Without it the plugin can list environments but
+   adds the shell hook, the cache and devenv's own Nix, which is why it is
+   opt-in today. Codex recommends default-on UI only: the UI detects a
+   missing devenv and offers the one-line enable, and the closure is measured
+   before deciding more. Without devenv the plugin can list environments but
    cannot create or enter one.
 2. **Project roots to scan.** The proposed default is `~/Source` and
-   `~/Projects`, up to depth 3. It is a setting either way.
-3. **Where "enter" lands.** The options are a new terminal in the project
-   directory, which activates the hook, or `devenv shell` explicitly. The
-   second also works without the hook.
-4. **Android.** devenv's `android.*` module pulls in a large SDK. Should the
-   preset set only `android.enable` with the defaults, or also pin platform
-   and emulator versions?
+   `~/Projects`, up to depth 3, without following symlinks. It is a setting
+   either way.
+3. **Enter = explicit `devenv shell` in a new terminal?** This is
+   recommended because it works without the hook. The alternative is `cd`
+   plus the hook.
+4. **Android: in this task, or split out?** It needs a YAML capability
+   (`nixpkgs.allowUnfree` in `devenv.yaml`) plus decisions on the SDK
+   licence, emulator and architecture.
+5. **Split into several tasks?** Codex suggests separate issues for:
+   - CLI, catalogue and discovery;
+   - the UI;
+   - destructive removal;
+   - mobile and cloud-generator templates;
+   - nixarchy integration (#802);
+   - Pages and captures, after the behaviour settles.
+   The alternative is one task with phased plan steps.
+6. **Fix the leaking runner in nixarchy now?** The `devenv-presets` runner
+   writing into the real allow list is an existing bug. It could be a small
+   fix in nixarchy today (its own issue), independent of this move.
+7. **Directories bound with `--from` (devenv 2.2+)**, which have no local
+   `devenv.nix`. Should they be listed, or explicitly out of scope for v1?
