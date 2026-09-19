@@ -402,6 +402,95 @@ cmd_status() {
   fi
 }
 
+# ---- remove -------------------------------------------------------------------
+
+# The one command here that deletes. Every check runs HERE, immediately before
+# anything is removed -- the plugin checks too, but the plugin is a UI and this
+# is the thing holding the knife. Any doubt is a refusal (exit 2) and nothing
+# is touched.
+#
+#   files   devenv.nix, devenv.yaml, devenv.lock, .devenv-template, and .devenv/
+#           EXCEPT .devenv/state (a service's data -- a database -- lives there),
+#           then `devenv revoke`. Your code stays.
+#   state   the above, and .devenv/state.
+#   folder  the whole directory.
+#
+# .envrc is never removed: this tool never writes one, so no .envrc can be
+# byte-identical to ours, and one somebody wrote is theirs.
+cmd_remove() {
+  local tier="" confirm="" dev="" dir="" roots=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --tier) tier=${2:-}; shift ;;
+      --confirm) confirm=${2:-}; shift ;;
+      --dev) dev=${2:-}; shift ;;
+      --root) roots+=("${2:-}"); shift ;;
+      -*) die 1 "unknown option $1" ;;
+      *) [ -z "$dir" ] || die 1 "one directory at a time"; dir=$1 ;;
+    esac
+    shift
+  done
+  case "$tier" in files | state | folder) ;; *) die 1 "--tier is files, state or folder" ;; esac
+  [ -n "$dir" ] && [ -n "$confirm" ] && [[ $dev =~ ^[0-9]+$ ]] ||
+    die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --dev N [--root DIR]... DIR"
+
+  [ "$confirm" = "$dir" ] || die 2 "refused: --confirm does not name $dir exactly."
+  local canon
+  canon=$(realpath -e -- "$dir" 2>/dev/null) || die 2 "refused: $dir does not exist."
+  [ "$canon" = "$dir" ] || die 2 "refused: $dir is not a canonical path (it resolves to $canon)."
+  [ "$dir" != / ] || die 2 "refused: /."
+  local home
+  home=$(realpath -e -- "$HOME" 2>/dev/null || echo "$HOME")
+  [ "$dir" != "$home" ] || die 2 "refused: your home directory."
+  case "$home/" in "$dir"/*) die 2 "refused: $dir contains your home directory." ;; esac
+  local r rc
+  for r in "${roots[@]}"; do
+    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) || continue
+    case "$rc/" in "$dir"/*) die 2 "refused: $dir is a project root, or contains one ($rc)." ;; esac
+  done
+  [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || die 2 "refused: $dir has no devenv.nix of its own."
+  [ "$(stat -c %d -- "$dir")" = "$dev" ] || die 2 "refused: $dir is not on the device it was listed on; refresh and try again."
+
+  # Processes: stopped, or no devenv at all. Unknown is a no -- a database
+  # losing its files under a running server is the failure this prevents.
+  local state
+  state=$(cmd_status --json "$dir" | jq -r '.state + " " + (.devenv | tostring)')
+  case "$state" in
+    "stopped true" | *" false") ;;
+    "running true") die 2 "refused: processes are running in $dir; stop them first." ;;
+    *) die 2 "refused: could not tell whether processes are running in $dir." ;;
+  esac
+
+  if command -v devenv >/dev/null 2>&1; then
+    (cd "$dir" && devenv revoke) >/dev/null 2>&1 || echo "nixarchy-devenv: devenv revoke failed; continuing" >&2
+  fi
+
+  case "$tier" in
+    folder)
+      rm -rf -- "$dir" || die 4 "could not remove $dir."
+      echo "Removed $dir."
+      return
+      ;;
+  esac
+
+  rm -f -- "$dir/devenv.nix" "$dir/devenv.yaml" "$dir/devenv.lock" "$dir/.devenv-template"
+  if [ -L "$dir/.devenv" ]; then
+    rm -f -- "$dir/.devenv"
+  elif [ -d "$dir/.devenv" ]; then
+    if [ "$tier" = state ]; then
+      rm -rf -- "$dir/.devenv"
+    else
+      find "$dir/.devenv" -mindepth 1 -maxdepth 1 ! -name state -exec rm -rf -- {} +
+      rmdir -- "$dir/.devenv" 2>/dev/null || true
+    fi
+  fi
+  if [ "$tier" = state ]; then
+    echo "Removed devenv's files and state from $dir. Your code is still there."
+  else
+    echo "Removed devenv's files from $dir, keeping .devenv/state. Your code is still there."
+  fi
+}
+
 # ---- dispatch -----------------------------------------------------------------
 
 case "${1:-help}" in
@@ -410,6 +499,7 @@ case "${1:-help}" in
   new) shift; cmd_new "$@" ;;
   list) shift; cmd_list "$@" ;;
   status) shift; cmd_status "$@" ;;
+  remove) shift; cmd_remove "$@" ;;
   help | -h | --help) cmd_help ;;
   *) cmd_help >&2; die 1 "unknown command '$1'." ;;
 esac

@@ -22,7 +22,7 @@ mkdir -p "$HOME" "$XDG_DATA_HOME/devenv"
 # devenv or nix. "No devenv" has to mean no devenv, and nothing here may reach
 # the network or the real trust database.
 mkdir -p "$root/bin"
-for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir sleep touch ln sort uniq wc sha256sum printf; do
+for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir sleep touch ln sort uniq wc sha256sum stat; do
   ln -s "$(command -v "$c")" "$root/bin/$c"
 done
 base_path="$root/bin"
@@ -207,6 +207,65 @@ jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: an error is u
 expect 0 "status without devenv" -- "$cli" status --json "$S"
 jq -e '.state == "unknown" and .devenv == false' "$root/out" >/dev/null || bad "status: no devenv"
 expect 2 "status of missing dir" -- "$cli" status --json "$root/nope"
+
+# ---- remove -------------------------------------------------------------------
+
+R=$(fresh)
+mkdir -p "$R/root"
+mkproj() {
+  local d="$R/root/$1"
+  mkdir -p "$d/src" "$d/.devenv/state/db" "$d/.devenv/profile"
+  echo '{ }' >"$d/devenv.nix"; echo 'inputs: {}' >"$d/devenv.yaml"; echo '{}' >"$d/devenv.lock"
+  echo python >"$d/.devenv-template"; echo code >"$d/src/main.py"; echo data >"$d/.devenv/state/db/x"
+  echo 'use devenv' >"$d/.envrc"
+  echo "$d"
+}
+dev_of() { stat -c %d "$1"; }
+rm_cli() { with_devenv env STUB_PROCESSES="${STUB_PROCESSES:-stopped}" "$cli" remove "$@"; }
+untouched() { [ -f "$1/devenv.nix" ] && [ -f "$1/src/main.py" ] && [ -f "$1/.devenv/state/db/x" ] || bad "$2: nothing may be deleted"; }
+
+p=$(mkproj a)
+d=$(dev_of "$p")
+expect 1 "remove: bad tier" -- rm_cli --tier all --confirm "$p" --dev "$d" "$p"
+expect 1 "remove: no --dev" -- rm_cli --tier files --confirm "$p" "$p"
+expect 2 "remove: confirm mismatch" -- rm_cli --tier files --confirm "$p/" --dev "$d" "$p"; untouched "$p" "confirm mismatch"
+ln -s "$p" "$R/alias"
+expect 2 "remove: symlinked dir" -- rm_cli --tier folder --confirm "$R/alias" --dev "$d" "$R/alias"; untouched "$p" "symlink"
+expect 2 "remove: HOME" -- rm_cli --tier folder --confirm "$HOME" --dev "$(dev_of "$HOME")" "$HOME"
+expect 2 "remove: a root" -- rm_cli --tier folder --confirm "$R/root" --dev "$(dev_of "$R/root")" --root "$R/root" "$R/root"
+echo '{ }' >"$R/devenv.nix"
+expect 2 "remove: a root's parent" -- rm_cli --tier folder --confirm "$R" --dev "$(dev_of "$R")" --root "$R/root" "$R"
+[ -d "$R/root" ] || bad "remove: a root's parent: nothing may be deleted"
+ln -s "$R/root" "$R/rootlink"
+expect 2 "remove: a root given as a symlink" -- rm_cli --tier folder --confirm "$R" --dev "$(dev_of "$R")" --root "$R/rootlink" "$R"
+expect 2 "remove: dev mismatch" -- rm_cli --tier files --confirm "$p" --dev 999999 "$p"; untouched "$p" "dev mismatch"
+mkdir -p "$R/root/plain"
+expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --dev "$d" "$R/root/plain"
+[ -d "$R/root/plain" ] || bad "remove: no devenv.nix: nothing may be deleted"
+expect 2 "remove: running" -- env STUB_PROCESSES=running bash -c "$(declare -f rm_cli with_devenv); cli='$cli' here='$here' base_path='$base_path' rm_cli --tier files --confirm '$p' --dev '$d' '$p'"
+untouched "$p" "running"
+expect 2 "remove: unknown" -- env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 bash -c "$(declare -f rm_cli with_devenv); cli='$cli' here='$here' base_path='$base_path' rm_cli --tier files --confirm '$p' --dev '$d' '$p'"
+untouched "$p" "unknown"
+
+: >"$STUB_LOG"
+expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --dev "$d" "$p"
+[ ! -e "$p/devenv.nix" ] && [ ! -e "$p/devenv.yaml" ] && [ ! -e "$p/devenv.lock" ] && [ ! -e "$p/.devenv-template" ] || bad "files: devenv files gone"
+[ -f "$p/.devenv/state/db/x" ] || bad "files: .devenv/state kept"
+[ ! -e "$p/.devenv/profile" ] || bad "files: the rest of .devenv gone"
+[ -f "$p/src/main.py" ] && [ -f "$p/.envrc" ] || bad "files: code and .envrc kept"
+grep -q "$p :: revoke" "$STUB_LOG" || bad "files: revoked"
+
+p=$(mkproj b)
+expect 0 "remove: state" -- rm_cli --tier state --confirm "$p" --dev "$(dev_of "$p")" "$p"
+[ ! -e "$p/.devenv" ] && [ -f "$p/src/main.py" ] || bad "state: .devenv gone, code kept"
+
+p=$(mkproj c)
+expect 0 "remove: folder" -- rm_cli --tier folder --confirm "$p" --dev "$(dev_of "$p")" --root "$R/root" "$p"
+[ ! -e "$p" ] && [ -d "$R/root" ] || bad "folder: the project gone, the root kept"
+
+p=$(mkproj d)
+expect 0 "remove: without devenv, nothing can be running" -- "$cli" remove --tier files --confirm "$p" --dev "$(dev_of "$p")" "$p"
+[ ! -e "$p/devenv.nix" ] || bad "remove without devenv"
 
 echo "cli: $pass passed, $fail failed"
 [ "$fail" = 0 ]

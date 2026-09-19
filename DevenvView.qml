@@ -35,6 +35,16 @@ FocusScope {
   property string confirmMessage: ""
   property string confirmLabel: "Confirm"
   property bool confirmOpen: false
+  // The removal chooser: which environment, which tier, what was typed.
+  property var removeEnv: null
+  property int removeTier: 0
+  property string removeTyped: ""
+  readonly property bool removeOpen: removeEnv !== null
+  readonly property string removeTierId: Model.TIERS[removeTier].id
+  readonly property string removeWhy: removeEnv
+    ? Model.removeRefusal(removeEnv, removeTierId, DevenvState.canonicalRoots, DevenvState.hostHome,
+        DevenvState.statusFor(removeEnv.path), removeTyped)
+    : ""
   property bool helpOpen: false
 
   property int cursorIndex: 0
@@ -182,12 +192,39 @@ FocusScope {
     root.confirmOpen = true
   }
 
-  // Removal arrives with plan step 13 (its own review point). Until then x
-  // offers revoke only, which deletes nothing.
+  // x: four answers, least destructive first, and the cursor starts on the
+  // one that deletes nothing. The status of this environment is fetched now,
+  // whatever it has in it: removal refuses while it is unknown.
   function askRemove(env) {
     if (DevenvState.mutating) { DevenvState.lastError = DevenvState.busyText(); return }
-    var path = env.path
-    ask(function() { DevenvState.remove(path, "revoke", "") }, Model.removeMessage(env, "revoke", DevenvState.hostHome), "Revoke")
+    DevenvState.statusPath = ""
+    DevenvState.requestStatus(env.path)
+    root.removeTier = 0
+    root.removeTyped = ""
+    removeTypedField.text = ""
+    root.removeEnv = env
+    Qt.callLater(function() { removeKeys.forceActiveFocus() })
+  }
+
+  function closeRemove() {
+    root.removeEnv = null
+    root.removeTyped = ""
+    Qt.callLater(root.focusForMode)
+  }
+
+  function moveTier(delta) {
+    root.removeTier = Math.max(0, Math.min(Model.TIERS.length - 1, root.removeTier + delta))
+    if (root.removeTierId === "folder") Qt.callLater(function() { removeTypedField.forceActiveFocus() })
+    else removeKeys.forceActiveFocus()
+  }
+
+  function acceptRemove() {
+    if (!root.removeEnv || root.removeWhy !== "") return
+    var path = root.removeEnv.path
+    var tier = root.removeTierId
+    var typed = root.removeTyped
+    closeRemove()
+    DevenvState.remove(path, tier, typed)
   }
 
   function askGc() {
@@ -275,7 +312,7 @@ FocusScope {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      blocked: filterField.activeFocus || root.confirmOpen || root.mode !== "list"
+      blocked: filterField.activeFocus || root.confirmOpen || root.removeOpen || root.mode !== "list"
 
       // KeyboardPanel focuses this catcher when the popup opens, on its own
       // schedule. Outside the list, send the keyboard on to whatever owns it,
@@ -594,6 +631,143 @@ FocusScope {
       background: Color.popups.background
       fontFamily: root.fontFamily
       onDismissed: root.helpOpen = false
+    }
+
+    // The removal chooser. Drawn here rather than as a Popup so the menu's
+    // scale applies to it; it owns the keyboard while it is open.
+    Rectangle {
+      id: removeSheet
+      anchors.fill: parent
+      z: 9
+      visible: root.removeOpen
+      color: Color.popups.background
+      opacity: 0.98
+
+      MouseArea { anchors.fill: parent; onClicked: {} }
+
+      FocusScope {
+        id: removeKeys
+        anchors.fill: parent
+
+        Keys.onPressed: function(event) {
+          if (event.key === Qt.Key_Escape) { root.closeRemove(); event.accepted = true }
+          else if (event.key === Qt.Key_Down || event.key === Qt.Key_J || event.key === Qt.Key_Tab) { root.moveTier(1); event.accepted = true }
+          else if (event.key === Qt.Key_Up || event.key === Qt.Key_K || event.key === Qt.Key_Backtab) { root.moveTier(-1); event.accepted = true }
+          else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.acceptRemove(); event.accepted = true }
+        }
+
+        Column {
+          anchors.fill: parent
+          anchors.margins: Style.spacing.xl
+          spacing: Style.spacing.md
+
+          Text {
+            width: parent.width
+            text: "Remove " + (root.removeEnv ? root.removeEnv.name : "")
+            textFormat: Text.PlainText
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            font.bold: true
+          }
+
+          Text {
+            width: parent.width
+            text: root.removeEnv ? root.removeEnv.path : ""
+            textFormat: Text.PlainText
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideMiddle
+          }
+
+          Repeater {
+            model: Model.TIERS
+
+            delegate: CursorSurface {
+              required property var modelData
+              required property int index
+              width: parent.width
+              hasCursor: index === root.removeTier
+              foreground: root.foreground
+              implicitHeight: tierText.implicitHeight + Style.spacing.md * 2
+              height: implicitHeight
+
+              MouseArea {
+                anchors.fill: parent
+                onClicked: root.moveTier(parent.index - root.removeTier)
+              }
+
+              Column {
+                id: tierText
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Style.spacing.lg
+                anchors.rightMargin: Style.spacing.lg
+                spacing: Style.spacing.xxs
+
+                Text {
+                  width: parent.width
+                  text: (index === root.removeTier ? "›  " : "   ") + modelData.label
+                  textFormat: Text.PlainText
+                  color: index > 0 && index === root.removeTier ? Color.urgent : root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  font.bold: index === root.removeTier
+                }
+
+                Text {
+                  width: parent.width
+                  text: modelData.text
+                  textFormat: Text.PlainText
+                  color: root.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                }
+              }
+            }
+          }
+
+          TextField {
+            id: removeTypedField
+            visible: root.removeTierId === "folder"
+            width: parent.width
+            foreground: root.foreground
+            placeholderText: "Type " + (root.removeEnv ? root.removeEnv.name : "") + " to delete the folder"
+            onTextChanged: root.removeTyped = text
+            Keys.onPressed: function(event) {
+              if (event.key === Qt.Key_Escape) { root.closeRemove(); event.accepted = true }
+              else if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) { root.moveTier(-1); event.accepted = true }
+              else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { root.acceptRemove(); event.accepted = true }
+            }
+          }
+
+          Text {
+            width: parent.width
+            visible: text !== ""
+            text: root.removeWhy
+            textFormat: Text.PlainText
+            color: Color.urgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.WordWrap
+          }
+
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            text: root.removeWhy === "" ? "↑↓ choose   enter " + Model.TIERS[root.removeTier].label.toLowerCase() + "   esc cancel"
+              : "↑↓ choose   esc cancel"
+            textFormat: Text.PlainText
+            color: root.foreground
+            opacity: 0.65
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+        }
+      }
     }
 
     ConfirmDialog {
