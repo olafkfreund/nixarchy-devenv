@@ -1,6 +1,7 @@
 ---
 title: The manual
 layout: manual
+permalink: /usage/
 ---
 
 # Using nixarchy.devenv

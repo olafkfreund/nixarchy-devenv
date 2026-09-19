@@ -157,6 +157,11 @@
               find ${self} -mindepth 1 -type l >&2
               echo "symlink in the repository above" >&2; exit 1
             fi
+            # docs/img ships inside every `omarchy plugin add` clone.
+            if [ -d ${self}/docs/img ] && [ "$(du -sk ${self}/docs/img | cut -f1)" -gt 8192 ]; then
+              du -sh ${self}/docs/img >&2
+              echo "docs/img is over 8 MB" >&2; exit 1
+            fi
             if grep -rnwE 'pacman|yay' ${self}/pkgs ${self}/data; then
               echo "Arch package manager reference above" >&2; exit 1
             fi

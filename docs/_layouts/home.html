@@ -1,0 +1,25 @@
+{%- comment -%} Copied from olafkfreund/nixarchy@e3827446bb32 docs/_layouts/home.html; names and links changed, via olafkfreund/nixarchy-distrobox docs/_layouts/home.html. Refresh by diffing against that file. {%- endcomment -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nixarchy.devenv — {{ site.description }}</title>
+<meta name="description" content="{{ site.description }}">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+</head>
+<body class="home">
+
+<header class="masthead">
+  {% include logo.html %}
+  <p class="tagline">{{ site.description }}</p>
+</header>
+
+<main class="content content--centred">
+  {{ content }}
+</main>
+
+</body>
+</html>
