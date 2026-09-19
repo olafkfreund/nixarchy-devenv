@@ -85,6 +85,7 @@ Singleton {
   property var envs: []
   // The roots as the CLI resolved them; removal checks against these.
   property var canonicalRoots: []
+  property var rootMap: []
   property var warnings: []
   property int skipped: 0
   property var templates: []
@@ -336,6 +337,7 @@ Singleton {
       if (!parsed.ok) return
       root.envs = parsed.rows
       root.canonicalRoots = parsed.roots
+      root.rootMap = parsed.rootMap
       root.warnings = parsed.warnings.concat(root.rootsInfo.rejected.length
         ? ["Not a usable root: " + root.rootsInfo.rejected.join(", ")] : [])
       root.skipped = parsed.skipped

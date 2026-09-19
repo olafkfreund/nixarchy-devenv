@@ -58,7 +58,7 @@ FocusScope {
   // ------------------------------------------------------------- derivation
 
   readonly property var visibleEnvs: Model.filterEnvs(DevenvState.envs, filterText)
-  readonly property var rows: Model.rowsFor(visibleEnvs, DevenvState.hostHome)
+  readonly property var rows: Model.rowsFor(visibleEnvs, DevenvState.hostHome, DevenvState.rootMap)
   readonly property var cursorRow: cursorIndex >= 0 && cursorIndex < rows.length ? rows[cursorIndex] : null
   readonly property var cursorEnv: cursorRow ? Model.envByPath(DevenvState.envs, cursorRow.path) : null
   readonly property var lock: ({ mutating: DevenvState.mutating })

@@ -75,3 +75,12 @@ test("emptyText says why", () => {
 test("shortcut groups keep their order", () => {
   eq(Model.shortcutGroups().map(g => g.title), ["Move", "Environment", "All", "Panel", "Create form", "Log"])
 })
+
+test("rows under a symlinked root read through the configured name", () => {
+  const map = [{ given: "/home/user/Source", canonical: "/mnt/data/src" }]
+  const rows = Model.rowsFor([env({ path: "/mnt/data/src/GitHub/app" }), env({ path: "/mnt/data/srcx/b", name: "b" })], HOME, map)
+  eq(rows.map(r => r.subtitle).sort(), ["/mnt/data/srcx", "~/Source/GitHub"])
+  eq(rows.find(r => r.name === "app").path, "/mnt/data/src/GitHub/app")
+  eq(Model.parseList(JSON.stringify({ rows: [], rootMap: [{ given: "/a", canonical: "/b" }, { given: "rel", canonical: "/c" }] })).rootMap,
+    [{ given: "/a", canonical: "/b" }])
+})

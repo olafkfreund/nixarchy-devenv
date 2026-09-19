@@ -226,7 +226,7 @@ function parseJson(raw) {
 // safe default, so an older or newer CLI never breaks the list.
 function parseList(raw) {
   var data = parseJson(raw)
-  var out = { rows: [], roots: [], warnings: [], skipped: 0, ok: false }
+  var out = { rows: [], roots: [], rootMap: [], warnings: [], skipped: 0, ok: false }
   if (!data || typeof data !== "object") return out
   out.ok = true
   var rows = data.rows && data.rows.length !== undefined ? data.rows : []
@@ -248,6 +248,11 @@ function parseList(raw) {
   // compares canonical rows against these, never against the raw setting.
   var roots = data.roots && data.roots.length !== undefined ? data.roots : []
   for (var k = 0; k < roots.length; k++) if (isAbsPath(roots[k])) out.roots.push(stripSlash(roots[k]))
+  var map = data.rootMap && data.rootMap.length !== undefined ? data.rootMap : []
+  for (var m = 0; m < map.length; m++) {
+    if (map[m] && isAbsPath(map[m].given) && isAbsPath(map[m].canonical))
+      out.rootMap.push({ given: stripSlash(map[m].given), canonical: stripSlash(map[m].canonical) })
+  }
   var warnings = data.warnings && data.warnings.length !== undefined ? data.warnings : []
   for (var w = 0; w < warnings.length; w++) out.warnings.push(sanitize(warnings[w], 200))
   out.skipped = typeof data.skipped === "number" ? data.skipped : 0
@@ -389,7 +394,20 @@ function rowRecord(row) {
   return out
 }
 
-function rowsFor(envs, home) {
+// A canonical path shown the way you configured its root: with ~/Source a
+// symlink to /mnt/data/Source-home, a row there reads ~/Source/..., not the
+// mount. Display only -- every command still gets the canonical path.
+function displayPath(path, rootMap, home) {
+  var p = str(path)
+  var map = rootMap || []
+  for (var i = 0; i < map.length; i++) {
+    var c = map[i].canonical
+    if (c !== "/" && (p === c || p.indexOf(c + "/") === 0)) { p = map[i].given + p.substring(c.length); break }
+  }
+  return tildePath(p, home)
+}
+
+function rowsFor(envs, home, rootMap) {
   var out = []
   var sorted = sortEnvs(envs)
   for (var i = 0; i < sorted.length; i++) {
@@ -398,7 +416,7 @@ function rowsFor(envs, home) {
     out.push({
       key: e.path,
       name: e.name,
-      subtitle: tildePath(parent, home),
+      subtitle: displayPath(parent, rootMap, home),
       template: e.template,
       path: e.path,
       allowed: e.allowed,

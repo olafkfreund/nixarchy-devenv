@@ -534,6 +534,10 @@ Every other row shows `·`, meaning not checked.
   ancestor of one", which is a removal safety check.
 - **Step 9: `gc()` is renamed `runGc()`.** `gc` is the QML engine's own
   global function and is an illegal method name in QML.
+- **Found live: `list` also reports `rootMap`,** pairing each configured
+  root with its canonical path, so a row under a symlinked root reads
+  `~/Source/GitHub` rather than `/mnt/data/Source-home/GitHub`. This is
+  display only: every command still gets the canonical path.
 
 ## Verification log
 

@@ -318,7 +318,7 @@ cmd_list() {
       echo "$r is missing or unreadable" >>"$tmp/warnings"
       continue
     fi
-    realpath -e -- "$r" >>"$tmp/roots"
+    printf '%s\t%s\n' "$r" "$(realpath -e -- "$r")" >>"$tmp/roots"
     find -H "$r" -maxdepth 3 \
       \( -name .git -o -name node_modules -o -name .devenv -o -name .direnv \) -prune \
       -o -name devenv.nix -type f -printf '%h\0' 2>/dev/null >>"$tmp/candidates"
@@ -368,7 +368,8 @@ cmd_list() {
     --rawfile warnings "$tmp/warnings" \
     --rawfile roots "$tmp/roots" \
     --argjson skipped "$skipped" \
-    '{rows: $rows, roots: ($roots | split("\n") | map(select(. != "")) | unique),
+    '($roots | split("\n") | map(select(. != "") | split("\t") | {given: .[0], canonical: .[1]})) as $map
+     | {rows: $rows, roots: ($map | map(.canonical) | unique), rootMap: $map,
       warnings: ($warnings | split("\n") | map(select(. != ""))), skipped: $skipped}'
 }
 

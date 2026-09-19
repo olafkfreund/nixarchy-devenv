@@ -188,6 +188,7 @@ ln -s "$L" "$root/linkroot"
 expect 0 "list via a symlinked root" -- "$cli" list --json --root "$root/linkroot"
 jq -r '.rows[].path' "$out" | grep -qxF "$L/a" || bad "list: a symlinked root is followed, rows are canonical"
 jq -e --arg l "$L" '.roots == [$l]' "$out" >/dev/null || bad "list: roots reported canonically"
+jq -e --arg l "$L" --arg g "$root/linkroot" '.rootMap == [{given: $g, canonical: $l}]' "$out" >/dev/null || bad "list: rootMap pairs the given root with its canonical path"
 ! jq -r '.rows[].path' "$out" | grep -q "/link$" || bad "list: symlinks below a root still not followed"
 expect 1 "list without --json" -- "$cli" list
 
