@@ -161,9 +161,15 @@ for example `feat(catalogue): android preset (#3, step 1)`.
    - on an empty workspace, open the form (`toggle nixarchy.devenv
      '{"create":true}'`), pick Android, and screenshot the unfree hint;
    - create `t1` under a `mktemp -d` root inside `~/Projects`;
-   - enter it and run: `adb --version`, `sdkmanager --list_installed`,
-     `command -v emulator` (must be empty), and `du -sh` of the SDK closure
-     (`nix path-info -Sh` on `$ANDROID_HOME`);
+   - enter it and run: `adb --version`, `sdkmanager --list_installed`, and
+     `du -sh` of the SDK closure (`nix path-info -Sh` on `$ANDROID_HOME`).
+     Also confirm that `$ANDROID_HOME/emulator` and `system-images` are absent.
+     *Revised on razer:* `command -v emulator` is **not** empty. It finds
+     `tools/emulator`, the 615 KB legacy launcher from SDK Tools 26.1.1,
+     which devenv always installs (`tools.version`, with no off switch). Run,
+     it fails ("Could not launch …/emulator/qemu/…"), so the real emulator is
+     absent. The absent directories are the check. Measured: the SDK is
+     1.8 GiB and the profile is 2.9 GiB, both now stated in `docs/usage.md`.
    - remove `t1` from the plugin;
    - restore everything recorded, and diff it.
 
