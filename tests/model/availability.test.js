@@ -40,3 +40,10 @@ test("dependencyText names what to install", () => {
   eq(/nix profile install/.test(Model.dependencyText({ cli: false, devenv: true })), true)
   eq(/nixarchy-service-enable devenv/.test(Model.dependencyText({ cli: true, devenv: false })), true)
 })
+
+test("a bound environment: no edit, everything else as usual", () => {
+  const b = row({ allowed: true, hasProcesses: true, from: "github:org/env" })
+  eq(verbs(b, {}, ALL, null), ["enter", "up", "update", "revoke", "remove"])
+  eq(verbs(b, {}, ALL, RUNNING), ["enter", "down", "update", "revoke", "remove"])
+  eq(Model.allowsVerb(b, "edit", {}, ALL, null), false)
+})
