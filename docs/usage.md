@@ -154,6 +154,31 @@ the list.
   `devenv.nix`, `devenv.yaml` and `devenv.lock`: the lock is what makes the
   project reproducible.
 
+### Android
+
+The Android template gives the Android SDK (platform and build tools, `adb`)
+and a JDK. The SDK is unfree, and a project's nixpkgs is configured by its own
+`devenv.yaml`, not by your system, so the template adds this to it:
+
+```yaml
+nixpkgs:
+  allow_unfree: true
+```
+
+The note under the template says so before you create anything. The emulator,
+system images and NDK are off, because each is a large download. Turn them on
+in `devenv.nix`:
+
+```nix
+android = {
+  enable = true;
+  emulator.enable = true;
+  systemImages.enable = true;
+};
+```
+
+It is offered on x86_64 only.
+
 ### Cloud projects
 
 Pick **Cloud project** and tick one or more providers with <kbd>space</kbd>:
