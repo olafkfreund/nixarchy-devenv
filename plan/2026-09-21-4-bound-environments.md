@@ -221,6 +221,46 @@ e.g. `feat(cli): list bound environments (#4, step 1)`.
    → verify by steps 6.5 to 6.7 passing, screenshots saved to the scratchpad,
    and razer left as it was found.
 
+6b. **Captures for both sites.** Added by the owner on 2026-09-21: "post this
+   in nixarchy-devenv as well as the nixarchy gh page … add this to 4".
+   The step 6 screenshots cannot be published: they show the owner's
+   terminals, and a directory that is not named `demo-*`.
+   - `docs/capture.sh --setup` also makes `demo-shared` (a `devenv init`
+     project with `env.GREET = "demo-shared"`) and `demo-bound`: no
+     `devenv.nix`, bound with `devenv --from path:<demo>/demo-shared allow`,
+     recorded as `allowed` so `--teardown` revokes it. It builds the first
+     shell during setup.
+   - Follow AGENTS.md "Retaking the captures" and nixarchy's
+     `docs/AGENTS.md`:
+     - record razer's theme and wallpaper (Gruvbox, The Backwater), and
+       switch to Tokyo Night with the Winding Road wallpaper;
+     - turn Do Not Disturb on;
+     - use an empty workspace (31), park the pointer, and reopen the surface;
+     - check the layers before every `wtype`.
+   - One `wl-screenrec` recording of the whole screen:
+     1. open the menu, where `demo-bound` reads `from path:…/demo-shared`;
+     2. `x` shows the revoke-only dialog; `esc`;
+     3. `enter` opens `devenv shell`, which prints `hello from demo-shared`;
+        `ls -A` there shows no `devenv.nix`;
+     4. back in the menu, `x` and `enter` revoke it, and the row leaves the
+        list.
+   - This repository:
+     - `docs/img/bound.png` (a 1056-wide still of the menu);
+     - `docs/img/rec-bound.{webm,mp4}` (a panel crop, VP9 `-crf 40` and
+       H.264 `-crf 28`);
+     - a "Bound environments" section in `docs/index.md`;
+     - `docs/img` stays under 8 MB.
+   - nixarchy: a whole-desktop 16:10 GIF (900x563, 4 fps, at most 96
+     colours, under 1 MB) and a still, for `docs/manual/plugins.md`. That is
+     another repository, so it follows that repository's own
+     intent/spec/plan workflow: an issue and a draft intent there, stopping
+     for review before its site changes.
+   - `docs/capture.sh --teardown`, then restore the theme, wallpaper, Do Not
+     Disturb and workspace. Diff `shell.json` against the step 6.2 copy.
+
+   → verify by looking at every still, and at a frame sheet of each video,
+   before committing.
+
 7. **PR.** Push the branch and open a PR that links the intent, spec and plan
    and says `Closes #4`, and add the razer results to its description.
 

@@ -56,6 +56,15 @@ setup() {
   # Filled dots: two of them allowed, and revoked again on teardown.
   (cd "$demo/demo-api" && devenv allow >/dev/null) && made allowed "$demo/demo-api"
   (cd "$demo/demo-infra" && devenv allow >/dev/null) && made allowed "$demo/demo-infra"
+  # A bound environment (#4): demo-bound has no devenv.nix of its own and takes
+  # demo-shared's through `devenv --from`. GREET names the source, so the
+  # shell's greeting shows where the environment came from. The first shell is
+  # built here, so the recording does not sit through an evaluation.
+  mkdir "$demo/demo-shared" "$demo/demo-bound"
+  (cd "$demo/demo-shared" && devenv init >/dev/null 2>&1)
+  sed -i 's|^  env.GREET = .*|  env.GREET = "demo-shared";|' "$demo/demo-shared/devenv.nix"
+  (cd "$demo/demo-bound" && devenv --from "path:$demo/demo-shared" allow >/dev/null) && made allowed "$demo/demo-bound"
+  (cd "$demo/demo-bound" && devenv shell -- true >/dev/null 2>&1) || echo "warning: demo-bound's first shell failed" >&2
 
   # Point the widget at the demo root only. The entry may be a bare id or an
   # object; either way it becomes an object carrying projectRoots.
