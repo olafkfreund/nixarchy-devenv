@@ -50,9 +50,18 @@ fresh() { local d; d=$(mktemp -d "$root/p.XXXX"); echo "$d"; }
 
 # ---- templates ----------------------------------------------------------------
 
+# Android is x86_64-only (its `systems`), so the built-in count is per machine.
+builtin=16
+[ "${HOSTTYPE:-}" = x86_64 ] && builtin=17
 expect 0 "templates --json" -- "$cli" templates --json
-jq -e 'length == 16 and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
-  bad "templates: 16 entries with id/kind/group/label"
+jq -e --argjson n "$builtin" 'length == $n and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
+  bad "templates: $builtin entries with id/kind/group/label"
+if [ "$builtin" = 17 ]; then
+  jq -e 'map(select(.id=="android"))[0].yaml == true and (map(select(.id=="python"))[0] | has("yaml") | not)' "$root/out" >/dev/null ||
+    bad "templates: android carries yaml, python does not"
+else
+  jq -e 'map(select(.id=="android")) == []' "$root/out" >/dev/null || bad "templates: android hidden off x86_64"
+fi
 jq -e 'map(select(.id=="cloud"))[0] | .honours_git == false and (.providers|index("aws"))' "$root/out" >/dev/null ||
   bad "templates: cloud generator fields"
 expect 1 "templates without --json" -- "$cli" templates
@@ -66,7 +75,7 @@ echo '{ }' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/broken/devenv.nix"
 echo 'not json' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/broken/template.json"
 echo 'inputs: {}' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/mine/devenv.yaml"
 expect 0 "templates with personal" -- "$cli" templates --json
-jq -e 'length == 17 and (map(select(.id=="mine"))[0].kind == "personal")' "$root/out" >/dev/null ||
+jq -e --argjson n "$((builtin + 1))" 'length == $n and (map(select(.id=="mine"))[0].kind == "personal")' "$root/out" >/dev/null ||
   bad "personal: only 'mine' is added (Bad id, built-in collision, broken json skipped)"
 grep -q "Bad" "$root/err" && grep -q "python" "$root/err" && grep -q "broken" "$root/err" ||
   bad "personal: each skip is warned about"
@@ -84,6 +93,27 @@ grep -q '^  languages.python = {' "$d/devenv.nix" || bad "init python: indented 
 
 expect 2 "init twice refuses" -- with_devenv bash -c "cd '$d' && '$cli' init python"
 grep -q 'languages.python' "$root/err" || bad "refusal prints the lines to paste"
+
+grep -q '^inputs:' "$d/devenv.yaml" && ! grep -q '^nixpkgs:' "$d/devenv.yaml" || bad "init python: devenv.yaml untouched"
+
+# A preset with yaml: appended to devenv init's devenv.yaml, once, never twice.
+if [ "$builtin" = 17 ]; then
+  d=$(fresh)
+  expect 0 "init android" -- with_devenv bash -c "cd '$d' && '$cli' init --no-git android"
+  grep -q '^  android = {' "$d/devenv.nix" || bad "init android: lines spliced"
+  [ "$(grep -c '^nixpkgs:' "$d/devenv.yaml")" = 1 ] && grep -q '^  allow_unfree: true$' "$d/devenv.yaml" ||
+    bad "init android: one nixpkgs: key with allow_unfree"
+  grep -q '^  nixpkgs:$' "$d/devenv.yaml" && grep -q 'url: github:cachix/devenv-nixpkgs/rolling' "$d/devenv.yaml" ||
+    bad "init android: devenv init's own devenv.yaml kept"
+  expect 2 "init android over a devenv.nix" -- with_devenv bash -c "cd '$d' && '$cli' init android"
+  grep -q 'android = {' "$root/err" && grep -q 'and to devenv.yaml:' "$root/err" && grep -q 'allow_unfree: true' "$root/err" ||
+    bad "init android refusal prints the lines and the yaml"
+  d=$(fresh)
+  expect 4 "init android when devenv.yaml has nixpkgs:" -- with_devenv env STUB_INIT_NIXPKGS=1 bash -c "cd '$d' && '$cli' init --no-git android"
+  grep -q 'already has a nixpkgs: key' "$root/err" && grep -q 'allow_unfree: true' "$root/err" || bad "nixpkgs: refusal prints the keys"
+  [ "$(grep -c '^nixpkgs:' "$d/devenv.yaml")" = 1 ] && ! grep -q '^  allow_unfree: true$' "$d/devenv.yaml" ||
+    bad "nixpkgs: refusal writes no second key"
+fi
 
 d=$(fresh)
 expect 0 "init --allow go" -- with_devenv bash -c "cd '$d' && '$cli' init --allow go"

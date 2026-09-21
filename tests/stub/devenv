@@ -17,7 +17,19 @@ case "$1" in
   # processes.dev.exec = "ls";
 }
 NIX
-    printf 'inputs: {}\n' >devenv.yaml
+    # devenv/init/devenv.yaml at 2.3.1: no top-level nixpkgs: key, only the
+    # pre-2.0 allow_unfree, commented out. STUB_INIT_NIXPKGS=1 stands for a
+    # future init that writes one, which the CLI must refuse to duplicate.
+    cat >devenv.yaml <<'YAML'
+# yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
+inputs:
+  nixpkgs:
+    url: github:cachix/devenv-nixpkgs/rolling
+
+# If you're using non-OSS software, you can set allow_unfree to true.
+# allow_unfree: true
+YAML
+    if [ "${STUB_INIT_NIXPKGS:-}" = 1 ]; then printf 'nixpkgs:\n  allow_broken: false\n' >>devenv.yaml; fi
     printf '.devenv*\n' >.gitignore
     ;;
   processes)
