@@ -99,7 +99,9 @@ d=$(mktemp -d) && git clone -q . "$d/p" && rm -rf "$d/p/.git" && omarchy plugin 
      `'{"create":true}'` to open straight into the form;
    - the popup: `omarchy shell nixarchy.devenv.bar open`.
 5. **Confirm what is up** with `hyprctl layers -j`. The menu's namespace is
-   `nixarchy-devenv-menu`.
+   `nixarchy-devenv-menu`. In a script, read it into a variable and test that;
+   `hyprctl layers -j | grep -q` under `pipefail` SIGPIPEs `hyprctl` and reads
+   as "closed" while the menu is on screen. That false reading is what #6 was.
 6. **Test environments:** create them under a `mktemp -d` root inside an
    existing project root (so no setting changes), name them `t1`, `t2` and so
    on, and remove them from the plugin when done. Never point a removal test
@@ -173,8 +175,11 @@ These rules are specific to devenv:
   `let`, no imports, and no `packages =`: `devenv init` already writes
   `packages`, and a second one is
   `error: attribute 'packages' already defined`. Take option names from devenv's
-  `src/modules`, not from memory. `templates-check` must pass for every preset
-  before release. It is not pure, so `nix flake check` cannot run it for you.
+  `src/modules`, not from memory. A preset may also carry `yaml` (plain
+  `devenv.yaml` keys, appended to devenv init's file, never overwriting it, and
+  refused rather than duplicating a top-level key) and `systems`. A preset with
+  `yaml` must say `devenv.yaml` in its note, or the catalogue does not build.
+  `templates-check` must pass for every preset before release. It is not pure, so `nix flake check` cannot run it for you.
 - **The plugin never evaluates Nix to draw.** Templates come from the JSON index
   built into the package. The environment list comes from `nixarchy-devenv list
   --json`. That command scans the configured roots without following symlinks,

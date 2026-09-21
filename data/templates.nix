@@ -25,6 +25,13 @@
 # `error: attribute 'packages' already defined`. Reach for the `languages.*`
 # option that installs the tool instead.
 #
+# `yaml` (optional) is plain devenv.yaml keys for what option lines cannot
+# say -- the project's own nixpkgs configuration, such as allowing an unfree
+# SDK. The CLI appends it to the devenv.yaml that `devenv init` writes, and
+# refuses rather than write a second top-level key; it never overwrites.
+# `systems` (optional) is the Nix systems an entry is offered on; without it,
+# everywhere. An entry hidden on a system is absent from that system's index.
+#
 # Nothing here validates itself -- `lines` is a string. `nix run .#templates-check`
 # scaffolds every entry with a real devenv and evaluates it. Run it before
 # changing this file.
@@ -39,6 +46,9 @@
 #   src/modules/languages/ruby.nix    enable, package, version, bundler.enable,
 #                                     lsp.enable (default on)
 #   src/modules/languages/dart.nix    enable, package
+#   src/modules/integrations/android.nix
+#                                     enable, emulator.enable, systemImages.enable,
+#                                     ndk.enable (all three default on)
 #
 # devenv has no flutter module; flutter ships its own dart, so it is
 # `languages.dart.package = pkgs.flutter`.
@@ -50,6 +60,8 @@
 #   note     What the user gets and what it costs.
 #   lines    (preset) devenv option lines, written flush left -- Nix '' strings
 #            strip common indentation; pkgs/cli.nix indents them on the way in.
+#   yaml     (preset, optional) devenv.yaml keys, flush left, appended as is.
+#   systems  (optional) Nix systems the entry is offered on.
 #   flake, rev, providers, honours  (generator) see the `cloud` entry.
 {
   # react and node are the same three lines under two names, and that is
@@ -334,7 +346,35 @@
         package = pkgs.flutter;
       };
     '';
-    note = "Flutter and its Dart for web, Linux desktop and tests. Android builds need the Android SDK, which is not in this preset yet.";
+    note = "Flutter and its Dart for web, Linux desktop and tests. Android builds need the Android SDK: that is the android template.";
+  };
+
+  # The SDK is unfree and a project's nixpkgs is its own (devenv.yaml), so the
+  # preset carries the one yaml key that allows it; the module accepts the SDK
+  # licence itself. The emulator, system images and NDK default on upstream --
+  # gigabytes nobody asked for -- so they start off. x86_64 only: androidenv's
+  # SDK and emulator are x86_64 binaries.
+  android = {
+    kind = "preset";
+    group = "Mobile";
+    label = "Android";
+    systems = [ "x86_64-linux" ];
+    lines = ''
+      # The emulator, system images and the NDK are off: flip them on here when
+      # you want them. Each is a large download.
+      android = {
+        enable = true;
+        emulator.enable = false;
+        systemImages.enable = false;
+        ndk.enable = false;
+      };
+    '';
+    yaml = ''
+      # The Android SDK is unfree; this project's nixpkgs must allow it.
+      nixpkgs:
+        allow_unfree: true
+    '';
+    note = "The Android SDK (platform and build tools, adb) and a JDK. Allows unfree packages in this project's devenv.yaml, because the SDK is unfree. No emulator, system images or NDK until you turn them on in devenv.nix.";
   };
 
   # ---- generators ------------------------------------------------------------

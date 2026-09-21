@@ -6,7 +6,7 @@ layout: home
 [devenv](https://devenv.sh) environments for the [Omarchy](https://omarchy.org)
 shell on [nixarchy](https://olafkfreund.github.io/nixarchy/). This plugin puts
 every project you have on the bar and behind **Super+Alt+E**. A new one, in any
-of sixteen stacks, is a form away.
+of seventeen stacks, is a form away.
 
 <figure class="shot">
   <video controls autoplay muted loop playsinline preload="metadata" aria-label="Recording of creating a Python project from the menu and entering it">
@@ -70,13 +70,13 @@ cloud templates lived in their own repository, and there was no Java, Kotlin,
 </figure>
 </div>
 
-## Sixteen templates
+## Seventeen templates
 
 | Group | Templates |
 | --- | --- |
 | Languages | Node.js, React, TypeScript, Python, Go, Rust, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
 | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
-| Mobile | Flutter |
+| Mobile | Flutter, Android (x86_64) |
 | Cloud | [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates): AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner, DigitalOcean |
 | Yours | any folder in `~/.config/nixarchy-devenv/templates/` |
 

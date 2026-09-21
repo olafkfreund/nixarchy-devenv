@@ -91,7 +91,12 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           cli = self.packages.${system}.cli;
+          hasAndroid = nixpkgs.lib.elem "android" cli.templateIds;
         in
+        # Evaluated, not built, so `--all-systems --no-build` proves it: an
+        # entry's `systems` hides it from every other system's index.
+        assert system == "x86_64-linux" -> hasAndroid;
+        assert system != "x86_64-linux" -> !hasAndroid;
         {
           # The CLI against stub devenv and nix: templates, init, new, list,
           # status. tests/cli.sh builds its own PATH, so the tools it links

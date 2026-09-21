@@ -82,7 +82,7 @@ cmd_templates() {
 
 cmd_help() {
   echo "Templates:"
-  all_templates warn | jq -r '.[] | [.id, .label, .group] | @tsv' |
+  all_templates warn | jq -r '.[] | [.id, .label + (if .yaml then " (devenv.yaml)" else "" end), .group] | @tsv' |
     while IFS=$'\t' read -r id label group; do
       printf '  %-12s %-34s %s\n' "$id" "$label" "[$group]"
     done
@@ -152,6 +152,12 @@ cmd_init() {
         echo "To add the '$tpl' lines by hand:"
         echo
         sed 's/^/  /' "$share/presets/$tpl.nix"
+        if [ -f "$share/presets/$tpl.yaml" ]; then
+          echo
+          echo "and to devenv.yaml:"
+          echo
+          sed 's/^/  /' "$share/presets/$tpl.yaml"
+        fi
       } >&2
       exit 2
     fi
@@ -167,6 +173,20 @@ cmd_init() {
       need devenv
       devenv init || die 4 "devenv init failed."
       splice_preset "$share/presets/$tpl.nix"
+      # Appended, never merged by rewriting: devenv's scaffold stays as it
+      # wrote it. A second top-level key would be a YAML error, so an init
+      # that already wrote one is a refusal with the keys to add by hand.
+      if [ -f "$share/presets/$tpl.yaml" ]; then
+        if grep -q '^nixpkgs:' devenv.yaml 2>/dev/null; then
+          {
+            echo "nixarchy-devenv: devenv.yaml already has a nixpkgs: key. Add these under it by hand:"
+            echo
+            sed 's/^/  /' "$share/presets/$tpl.yaml"
+          } >&2
+          exit 4
+        fi
+        { echo; cat "$share/presets/$tpl.yaml"; } >>devenv.yaml
+      fi
       ;;
     personal)
       # -n: never overwrite. Checked above that devenv.nix is absent; a

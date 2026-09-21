@@ -35,7 +35,7 @@ any Omarchy with devenv installed.
   | --- | --- |
   | Languages | Node.js, React, TypeScript, Python, Go, Rust, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
   | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
-  | Mobile | Flutter |
+  | Mobile | Flutter, Android (x86_64; allows unfree packages in its `devenv.yaml`) |
   | Cloud | [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates): AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner, DigitalOcean, one or several |
   | Yours | anything in `~/.config/nixarchy-devenv/templates/` |
 
