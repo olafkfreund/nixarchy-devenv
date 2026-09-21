@@ -81,16 +81,20 @@ cannot.
 - **Option names come from devenv's source**, cited in the catalogue header as
   for the other presets.
 
+## Decisions
+
+Answered by the owner on 2026-09-21:
+
+1. **Unfree scope:** `nixpkgs.allow_unfree: true` in the project's
+   `devenv.yaml`, stated plainly in the template's note, not a
+   `permitted_unfree_packages` list.
+2. **Catalogue shape:** an optional `yaml` attribute on `preset`, not a third
+   kind.
+3. **Default SDK contents:** platform tools and build tools on; the emulator,
+   system images and NDK off, with the note saying how to turn them on.
+4. **aarch64-linux:** the template is hidden there. It is not offered with a
+   note.
+
 ## Open questions
 
-1. **Unfree scope.** Use `nixpkgs.allow_unfree: true` (simple, and covers
-   every SDK component), or a `permitted_unfree_packages` list (narrower,
-   but it has to name every component and breaks when devenv adds one)?
-   Proposal: `allow_unfree`, stated in the note.
-2. **Catalogue shape.** An optional `yaml` attribute on `preset`, or a third
-   kind? Proposal: an optional `yaml` attribute, so the rest of the pipeline
-   (index, splice, `templates-check`) stays one path.
-3. **The default SDK contents.** Proposal: platform tools and build tools on,
-   and the emulator, system images and NDK off. Or should the emulator be on,
-   because many people want one?
-4. **aarch64-linux.** Offer the template there with a note, or hide it?
+None.
