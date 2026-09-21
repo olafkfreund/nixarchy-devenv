@@ -25,6 +25,13 @@ let
   ) (lib.attrNames templates);
   presetIds = lib.filter (n: templates.${n}.kind == "preset") ids;
 
+  # A preset's yaml changes the project's own nixpkgs configuration (android's
+  # allows unfree packages), and the form's only word on a template is its
+  # note -- so the note has to say so, or the catalogue does not build.
+  unannouncedYaml = lib.filter (
+    n: templates.${n} ? yaml && !(lib.hasInfix "devenv.yaml" templates.${n}.note)
+  ) (lib.attrNames templates);
+
   # Nix '' strings strip common indentation, so the catalogue is flush left and
   # the two spaces devenv's own scaffold uses go on here. Blank lines stay blank.
   indent =
@@ -66,6 +73,8 @@ let
     '') (lib.filter (n: templates.${n} ? yaml) presetIds)
   );
 in
+assert lib.assertMsg (unannouncedYaml == [ ])
+  "templates with yaml whose note does not mention devenv.yaml: ${toString unannouncedYaml}";
 writeShellApplication {
   name = "nixarchy-devenv";
   runtimeInputs = [

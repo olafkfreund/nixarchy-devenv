@@ -119,15 +119,19 @@ for example `feat(catalogue): android preset (#3, step 1)`.
    → verify by `bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"`
    passing, with shellcheck clean.
 
-4. **`Model.js`:**
-   - `parseTemplates` adds `yaml: t.yaml === true`;
-   - `formFields` adds `hint: "Allows unfree packages in this project's
-     devenv.yaml"` to the template row when `t && t.yaml`.
-   - Tests in `tests/model/form.test.js` and `parsing.test.js`: `yaml` kept
-     only for `true` (reject `"true"` and `1`), and the hint present for
-     android and absent for python.
+4. **The form's consent line** *(revised during implementation)*.
+   `CreateForm.qml:426` shows the chosen template's `note` on the template
+   row, never a hint. So a `formFields` hint would never be drawn, and if
+   forced it would repeat the note, which already says "Allows unfree
+   packages in this project's devenv.yaml". Instead:
+   - `pkgs/cli.nix` refuses to build a catalogue where a template with `yaml`
+     has a note that does not mention `devenv.yaml` (`lib.assertMsg`,
+     evaluated). The consent text is then guaranteed for every future YAML
+     preset, not just this one.
+   - `Model.js` does not change: nothing in the UI reads a `yaml` flag.
 
-   → verify by `node tests/run.js` passing.
+   → verify by `nix build .#cli` passing, and failing with the message when
+   android's note has "devenv.yaml" removed (a mutation, not committed).
 
 5. **Docs:**
    - `docs/usage.md` template list: Android, the unfree note, and how to turn
@@ -172,7 +176,8 @@ for example `feat(catalogue): android preset (#3, step 1)`.
 
 | Command | Expected |
 | --- | --- |
-| `node tests/run.js` | all pass, including new yaml/hint cases |
+| `node tests/run.js` | all pass (Model.js unchanged; see step 4) |
+| `nix build .#cli` | passes; fails if a yaml template's note omits devenv.yaml |
 | `bash tests/cli.sh …` | all pass, including append, refuse, print and index cases |
 | `nix flake check` | passes |
 | `nix flake check --all-systems --no-build` | evaluates; the aarch64 index lacks android |
