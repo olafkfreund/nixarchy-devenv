@@ -40,7 +40,8 @@ FocusScope {
   property int removeTier: 0
   property string removeTyped: ""
   readonly property bool removeOpen: removeEnv !== null
-  readonly property string removeTierId: Model.TIERS[removeTier].id
+  readonly property var removeTiers: Model.tiersFor(removeEnv)
+  readonly property string removeTierId: removeTiers[Math.min(removeTier, removeTiers.length - 1)].id
   readonly property string removeWhy: removeEnv
     ? Model.removeRefusal(removeEnv, removeTierId, DevenvState.canonicalRoots, DevenvState.hostHome,
         DevenvState.statusFor(removeEnv.path), removeTyped)
@@ -213,7 +214,7 @@ FocusScope {
   }
 
   function moveTier(delta) {
-    root.removeTier = Math.max(0, Math.min(Model.TIERS.length - 1, root.removeTier + delta))
+    root.removeTier = Math.max(0, Math.min(root.removeTiers.length - 1, root.removeTier + delta))
     if (root.removeTierId === "folder") Qt.callLater(function() { removeTypedField.forceActiveFocus() })
     else removeKeys.forceActiveFocus()
   }
@@ -681,7 +682,7 @@ FocusScope {
           }
 
           Repeater {
-            model: Model.TIERS
+            model: root.removeTiers
 
             delegate: CursorSurface {
               required property var modelData
@@ -757,7 +758,7 @@ FocusScope {
           Text {
             width: parent.width
             horizontalAlignment: Text.AlignRight
-            text: root.removeWhy === "" ? "↑↓ choose   enter " + Model.TIERS[root.removeTier].label.toLowerCase() + "   esc cancel"
+            text: root.removeWhy === "" ? "↑↓ choose   enter " + root.removeTiers[Math.min(root.removeTier, root.removeTiers.length - 1)].label.toLowerCase() + "   esc cancel"
               : "↑↓ choose   esc cancel"
             textFormat: Text.PlainText
             color: root.foreground
