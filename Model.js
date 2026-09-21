@@ -776,9 +776,16 @@ var TIERS = [
   { id: "folder", label: "Delete the folder", text: "Delete the whole project folder, code included. Type its name to confirm." }
 ]
 
-// A bound environment has nothing of its own to delete: revoke only.
+// A bound environment has nothing of its own to delete: revoke only, and the
+// chooser draws each tier's `text`, so revoke says what else it forgets.
 function tiersFor(env) {
-  return isBound(env) ? [TIERS[0]] : TIERS
+  if (!isBound(env)) return TIERS
+  return [{ id: "revoke", label: TIERS[0].label, text: boundRevokeText(env) }]
+}
+
+function boundRevokeText(env) {
+  return "Forgets that it is bound to " + sanitize(env.from, 120) +
+    ", and its saved profiles. Nothing is deleted. It leaves this list: without the binding devenv sees no environment here."
 }
 
 function tierById(id) {
@@ -829,10 +836,7 @@ function removeArgv(env, tier, roots) {
 function removeMessage(env, tier, home) {
   var t = tierById(tier)
   if (!env || !t) return ""
-  if (t.id === "revoke" && isBound(env)) {
-    return t.label + ": " + tildePath(env.path, home) + "\nForgets that it is bound to " + sanitize(env.from, 120) +
-      ", and its saved profiles. Nothing is deleted. It leaves this list: without the binding devenv sees no environment here."
-  }
+  if (t.id === "revoke" && isBound(env)) return t.label + ": " + tildePath(env.path, home) + "\n" + boundRevokeText(env)
   return t.label + ": " + tildePath(env.path, home) + "\n" + t.text
 }
 

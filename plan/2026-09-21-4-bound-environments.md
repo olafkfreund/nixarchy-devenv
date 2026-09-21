@@ -97,7 +97,12 @@ e.g. `feat(cli): list bound environments (#4, step 1)`.
      gain `detail` and `bound`.
    - `filterEnvs` matches on `from`.
    - `actionsFor` omits `edit` when `row.bound`.
-   - Add `tiersFor(env)`: `[TIERS[0]]` if bound, otherwise `TIERS`.
+   - Add `tiersFor(env)`: `TIERS` for a local environment. For a bound one it
+     is a single revoke tier whose `text` is the bound revoke message.
+     *Deviation, found live on razer in step 6:* the chooser draws each tier's
+     own `text` and never calls `removeMessage`. With `[TIERS[0]]` the dialog
+     read "Stop it activating on cd", so the source and profiles were never
+     mentioned on screen.
    - `removeRefusal` returns `"Bound to <from>: nothing here to remove;
      revoke forgets the binding"` for a non-revoke tier on a bound env, before
      the path checks.
@@ -150,9 +155,16 @@ e.g. `feat(cli): list bound environments (#4, step 1)`.
    plugin nor the CLI is installed there today (checked 2026-09-21: devenv
    2.3.1, `nixarchy-devenv` missing, no `nixarchy.devenv` in
    `~/.config/omarchy/plugins`).
-   1. **Ship the build.** Build `.#plugin` and `.#cli` locally, then run
-      `nix copy --to ssh-ng://razer` on both out paths. On razer, pin them
-      with `nix-store --add-root ~/.local/state/nixarchy-devenv-test/{plugin,cli} -r <path>`.
+   1. **Ship the build.** Send `git archive HEAD` to
+      `~/.local/state/nixarchy-devenv-test/src` on razer, and build `.#plugin`
+      and `.#cli` there with `-o ../plugin` and `-o ../cli` (these are the
+      gcroots). *Deviation:* `nix copy` was refused because razer does not
+      trust this machine's unsigned paths. Building there gave the same store
+      paths, and razer's trust settings stay as they were.
+      Over SSH, source `XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY`,
+      `HYPRLAND_INSTANCE_SIGNATURE`, `DBUS_SESSION_BUS_ADDRESS`, `OMARCHY_PATH`
+      and `PATH` from `/proc/<quickshell pid>/environ`. Without them
+      `omarchy-shell` reports "not running".
    2. **Record razer's state first.**
       - `sha256sum ~/.local/share/devenv/allowed`, or "absent" (saved as
         `before`).

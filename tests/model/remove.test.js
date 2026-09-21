@@ -70,6 +70,8 @@ test("the dialog names the tier and the full path", () => {
 test("a bound environment offers revoke only, and says what revoke forgets", () => {
   const b = { from: "github:org/env", profiles: ["backend"] }
   eq(Model.tiersFor(e(b)).map(t => t.id), ["revoke"])
+  ok(/bound to github:org\/env/.test(Model.tiersFor(e(b))[0].text), "the chooser's own text names the source")
+  eq(Model.TIERS[0].text, "Stop it activating on cd. Nothing is deleted.")
   eq(Model.tiersFor(e()).map(t => t.id), ["revoke", "files", "state", "folder"])
   eq(Model.tiersFor(null).length, 4)
   eq(refuse(b, "revoke"), "")
