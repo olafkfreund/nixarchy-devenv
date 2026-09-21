@@ -184,7 +184,7 @@ Item {
 
         Text {
           width: parent.width
-          text: Model.join([rowSurface.row.subtitle, rowSurface.row.template,
+          text: Model.join([rowSurface.row.subtitle, rowSurface.row.detail,
             rowSurface.row.lockfile ? "" : "no lockfile yet"])
           textFormat: Text.PlainText
           visible: text !== ""

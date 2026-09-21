@@ -84,3 +84,17 @@ test("rows under a symlinked root read through the configured name", () => {
   eq(Model.parseList(JSON.stringify({ rows: [], rootMap: [{ given: "/a", canonical: "/b" }, { given: "rel", canonical: "/c" }] })).rootMap,
     [{ given: "/a", canonical: "/b" }])
 })
+
+test("a bound row reads where it comes from, and filters on it", () => {
+  const b = env({ path: "/tmp/b", name: "b", allowed: true, from: "github:org/env", profiles: ["backend", "db"] })
+  const r = Model.rowsFor([b], HOME)[0]
+  eq(r.bound, true)
+  eq(r.detail, "from github:org/env · profiles backend, db")
+  eq(Model.rowsFor([env({ path: "/tmp/c", from: "path:/x" })], HOME)[0].detail, "from path:/x")
+  const local = Model.rowsFor([env({ template: "python" })], HOME)[0]
+  eq(local.bound, false)
+  eq(local.detail, "python")
+  eq(Model.filterEnvs([b, env({ path: "/tmp/other", name: "other" })], "org/env").map(e => e.name), ["b"])
+  eq(Model.rowRecord(r).bound, true)
+  eq(Model.rowRecord(local).detail, "python")
+})

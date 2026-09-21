@@ -66,3 +66,17 @@ test("the dialog names the tier and the full path", () => {
   ok(m.indexOf(".devenv/state") !== -1)
   ok(/every project/.test(Model.gcMessage()))
 })
+
+test("a bound environment offers revoke only, and says what revoke forgets", () => {
+  const b = { from: "github:org/env", profiles: ["backend"] }
+  eq(Model.tiersFor(e(b)).map(t => t.id), ["revoke"])
+  ok(/bound to github:org\/env/.test(Model.tiersFor(e(b))[0].text), "the chooser's own text names the source")
+  eq(Model.TIERS[0].text, "Stop it activating on cd. Nothing is deleted.")
+  eq(Model.tiersFor(e()).map(t => t.id), ["revoke", "files", "state", "folder"])
+  eq(Model.tiersFor(null).length, 4)
+  eq(refuse(b, "revoke"), "")
+  for (const tier of ["files", "state", "folder"]) ok(/^Bound to github:org\/env: nothing here to remove/.test(refuse(b, tier, STOPPED, "app")))
+  const m = Model.removeMessage(e(b), "revoke", HOME)
+  ok(/bound to github:org\/env/.test(m) && /saved profiles/.test(m) && /Nothing is deleted/.test(m))
+  ok(!/bound to/.test(Model.removeMessage(e(), "revoke", HOME)))
+})

@@ -287,6 +287,16 @@ template_of() {
   if [[ $t =~ ^[a-z0-9-]+$ ]]; then echo "$t"; else echo custom; fi
 }
 
+# True when DIR or any ancestor has a devenv.nix; -e, as devenv's .exists().
+shadowed() {
+  local d=$1
+  while :; do
+    [ -e "$d/devenv.nix" ] && return 0
+    [ "$d" = / ] && return 1
+    d=$(dirname -- "$d")
+  done
+}
+
 cmd_list() {
   [ "${1:-}" = "--json" ] || die 1 "usage: nixarchy-devenv list --json [--root DIR]..."
   shift
@@ -360,8 +370,36 @@ cmd_list() {
       --argjson hasProcesses "$(grep -qE '^[[:space:]]*(processes|services)[[:space:]]*[.=]' "$real/devenv.nix" && echo true || echo false)" \
       --argjson dev "$(stat -c %d "$real")" \
       --argjson mtime "$(stat -c %Y "$real/devenv.nix")" \
-      '$ARGS.named'
+      '$ARGS.named + {from: "", profiles: []}'
   done <"$tmp/candidates" >"$tmp/rows"
+
+  # Bound environments: `devenv --from SRC allow` writes the allow line as
+  # {"path", "from", "profiles"} and nothing else records the binding
+  # (TrustEntry in devenv/src/commands/hook.rs, read at v2.3.1). devenv only
+  # consults a binding when no devenv.nix exists in the directory or any
+  # ancestor (find_project_root, then trusted_from), so neither do we. Its
+  # source is shown as text, never fetched; Start is offered because what the
+  # source defines cannot be known without evaluating it.
+  if [ -f "$af" ]; then
+    jq -R -c 'fromjson? | select((.path | type) == "string" and (.path | startswith("/")) and (.from | type) == "string")
+      | {path, from, profiles: ((.profiles // []) | if type == "array" then map(strings) else [] end)}' \
+      "$af" 2>/dev/null >"$tmp/bound" || true
+    local b
+    while IFS= read -r b; do
+      real=$(realpath -e -- "$(jq -r .path <<<"$b")" 2>/dev/null) || continue
+      [ -d "$real" ] && [ -z "${seen[$real]:-}" ] || continue
+      shadowed "$real" && continue
+      seen[$real]=1
+      jq -c \
+        --arg path "$real" \
+        --arg name "$(basename "$real")" \
+        --argjson lockfile "$([ -f "$real/devenv.lock" ] && echo true || echo false)" \
+        --argjson dev "$(stat -c %d "$real")" \
+        --argjson mtime "$(stat -c %Y "$real")" \
+        '{path: $path, name: $name, allowed: true, lockfile: $lockfile, template: "custom",
+          hasProcesses: true, dev: $dev, mtime: $mtime, from, profiles}' <<<"$b"
+    done <"$tmp/bound" >>"$tmp/rows"
+  fi
 
   jq -n \
     --slurpfile rows "$tmp/rows" \

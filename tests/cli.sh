@@ -145,6 +145,10 @@ touch "$L/a/devenv.lock"
 O=$(fresh)
 mkdir -p "$O/outside"
 echo '{ }' >"$O/outside/devenv.nix"
+# Bound with `devenv --from`: no devenv.nix of their own.
+mkdir -p "$O/bound" "$L/boundlocal" "$L/a/boundbelow" "$O/badfrom"
+touch "$O/bound/devenv.lock"
+echo '{ }' >"$L/boundlocal/devenv.nix"
 
 allowed="$XDG_DATA_HOME/devenv/allowed"
 {
@@ -154,6 +158,11 @@ allowed="$XDG_DATA_HOME/devenv/allowed"
   echo 'not json'
   echo '{"path":42}'
   echo "{\"path\":\"$L/a\""
+  echo "{\"path\":\"$O/bound\",\"from\":\"github:org/env?dir=x\",\"profiles\":[\"backend\"]}"
+  echo "{\"path\":\"$L/boundlocal\",\"from\":\"github:org/env\"}"
+  echo "{\"path\":\"$L/a/boundbelow\",\"from\":\"github:org/env\"}"
+  echo "{\"path\":\"$root/boundgone\",\"from\":\"github:org/env\"}"
+  echo "{\"path\":\"$O/badfrom\",\"from\":42}"
 } >"$allowed"
 before=$(sha256sum "$allowed")
 
@@ -176,6 +185,13 @@ row() { jq -c --arg p "$1" '.rows[] | select(.path == $p)' "$out"; }
 row "$L/a" | jq -e '.allowed and .lockfile and .template == "python" and (.hasProcesses | not) and (.dev|type=="number")' >/dev/null || bad "list: row a fields"
 row "$L/real" | jq -e '(.allowed | not) and (.lockfile | not) and .template == "custom" and (.hasProcesses | not)' >/dev/null || bad "list: bad .devenv-template is custom, commented processes ignored"
 row "$L/a/nested" | jq -e '.hasProcesses' >/dev/null || bad "list: hasProcesses"
+row "$L/a" | jq -e '.from == "" and .profiles == []' >/dev/null || bad "list: local rows have an empty from"
+row "$O/bound" | jq -e '.allowed and .template == "custom" and .hasProcesses and .lockfile and .from == "github:org/env?dir=x" and .profiles == ["backend"] and (.dev|type=="number")' >/dev/null || bad "list: bound row fields"
+[ "$(paths | grep -cxF "$L/boundlocal")" = 1 ] || bad "list: a bound directory with its own devenv.nix is one row"
+row "$L/boundlocal" | jq -e '.from == ""' >/dev/null || bad "list: its own devenv.nix wins over the binding"
+! paths | grep -q "/boundbelow$" || bad "list: a binding below a local project is shadowed"
+! paths | grep -q "/boundgone$" || bad "list: a dead binding is hidden"
+! paths | grep -q "/badfrom$" || bad "list: a non-string from is not a binding"
 [ "$before" = "$(sha256sum "$allowed")" ] || bad "list: allow file unchanged"
 
 DEVENV_HOME="$root/dh" expect 0 "list with DEVENV_HOME" -- env DEVENV_HOME="$root/dh" "$cli" list --json
@@ -242,6 +258,14 @@ expect 2 "remove: a root given as a symlink" -- rm_cli --tier folder --confirm "
 expect 2 "remove: dev mismatch" -- rm_cli --tier files --confirm "$p" --dev 999999 "$p"; untouched "$p" "dev mismatch"
 mkdir -p "$R/root/plain"
 expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --dev "$d" "$R/root/plain"
+# A bound directory (`devenv --from`) has no devenv.nix of its own: every
+# deleting tier refuses, and its state stays.
+B=$(fresh)
+mkdir -p "$B/bound/.devenv/state/db" && echo data >"$B/bound/.devenv/state/db/x" && touch "$B/bound/devenv.lock"
+for t in files state folder; do
+  expect 2 "remove: bound, tier $t" -- rm_cli --tier "$t" --confirm "$B/bound" --dev "$(dev_of "$B/bound")" "$B/bound"
+  [ -f "$B/bound/.devenv/state/db/x" ] && [ -f "$B/bound/devenv.lock" ] || bad "remove: bound, tier $t: nothing may be deleted"
+done
 [ -d "$R/root/plain" ] || bad "remove: no devenv.nix: nothing may be deleted"
 expect 2 "remove: running" -- env STUB_PROCESSES=running bash -c "$(declare -f rm_cli with_devenv); cli='$cli' here='$here' base_path='$base_path' rm_cli --tier files --confirm '$p' --dev '$d' '$p'"
 untouched "$p" "running"

@@ -11,7 +11,7 @@ test("parseList keeps well-formed rows and types every field", () => {
   eq(out.ok, true)
   eq(out.rows.length, 1)
   eq(out.rows[0], { path: "/home/user/Source/app", name: "app", allowed: true, lockfile: true,
-    template: "python", hasProcesses: false, dev: 2049, mtime: 1000 })
+    template: "python", hasProcesses: false, dev: 2049, mtime: 1000, from: "", profiles: [] })
 })
 
 test("parseList drops rows without a safe absolute path", () => {
@@ -23,7 +23,7 @@ test("parseList drops rows without a safe absolute path", () => {
 test("parseList defaults what an older or newer CLI leaves out", () => {
   const out = Model.parseList(list([{ path: "/p/x", extra: "ignored" }]))
   eq(out.rows[0], { path: "/p/x", name: "x", allowed: false, lockfile: false, template: "custom",
-    hasProcesses: false, dev: -1, mtime: 0 })
+    hasProcesses: false, dev: -1, mtime: 0, from: "", profiles: [] })
 })
 
 test("parseList: a template that is not an id is custom; truthy non-booleans are false", () => {
@@ -100,4 +100,16 @@ test("stripAnsi keeps what the last redraw left", () => {
   eq(Model.stripAnsi(ESC + "[32mok" + ESC + "[0m"), "ok")
   eq(Model.stripAnsi("10%" + CR + "50%" + CR + "100% done"), "100% done")
   ok(Model.capLine("x".repeat(5000)).length <= Model.LINE_CAP)
+})
+
+test("parseList keeps a bound row's source and only well-formed profile names", () => {
+  const rows = r => Model.parseList(JSON.stringify({ rows: [Object.assign({ path: "/p/b" }, r)] })).rows[0]
+  eq(rows({ from: "github:org/env?dir=x", profiles: ["backend", "fast.start_1"] }).from, "github:org/env?dir=x")
+  eq(rows({ from: "github:org/env", profiles: ["backend", "fast.start_1"] }).profiles, ["backend", "fast.start_1"])
+  eq(rows({ from: "git\u001b[31mhub:x\n" }).from, "git[31mhub:x")
+  eq(rows({ from: "x".repeat(500) }).from.length, 200)
+  eq(rows({ from: 42 }).from, "42")
+  eq(rows({ profiles: ["a/b", "a b", "a\nb", "", 3, null, "x".repeat(65), "ok"] }).profiles, ["ok"])
+  eq(rows({ profiles: "backend" }).profiles, [])
+  eq(rows({ profiles: { length: 1, 0: "backend" } }).profiles, ["backend"])
 })

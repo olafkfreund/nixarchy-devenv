@@ -101,6 +101,30 @@ refuses:
 - a folder that moved device since it was listed;
 - anything whose processes are running, or might be.
 
+## Bound environments
+
+A directory bound with `devenv --from <source> allow` has an environment but
+no `devenv.nix` of its own: its configuration lives somewhere else. It is in
+the list anyway, reading **from &lt;source&gt;** where a template would be.
+
+<figure class="shot">
+  <video controls muted loop playsinline preload="metadata" aria-label="Recording of a bound environment: listed with its source, removal offering only revoke, a shell from the bound configuration, and revoking it">
+    <source src="img/rec-bound.webm" type="video/webm">
+    <source src="img/rec-bound.mp4" type="video/mp4">
+  </video>
+  <figcaption><code>demo-bound</code> has no <code>devenv.nix</code>; it is bound to <code>demo-shared</code>. <kbd>x</kbd> offers revoke only. <kbd>enter</kbd> opens its shell, and <code>hello</code> answers from <code>demo-shared</code>'s configuration. Revoking it from the menu forgets the binding, and the row leaves the list.</figcaption>
+</figure>
+
+<figure class="shot">
+  <img src="img/bound.png" alt="The menu listing demo projects, demo-bound first, reading from path to demo-shared, with no edit button">
+  <figcaption>The bound row has no edit button: there is no <code>devenv.nix</code> here to edit.</figcaption>
+</figure>
+
+<figure class="shot">
+  <img src="img/bound-remove.png" alt="The removal chooser for demo-bound, with Revoke as its only choice">
+  <figcaption>Nothing to delete, so one choice. Revoke says what else it forgets.</figcaption>
+</figure>
+
 ## How it works
 
 The plugin is a Quickshell QML surface. All of its logic is in one tested

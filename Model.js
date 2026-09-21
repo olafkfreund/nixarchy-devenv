@@ -45,7 +45,7 @@ var SHORTCUTS = [
   { group: "Move", keys: "esc", text: "Leave the filter, then close the panel" },
 
   { group: "Environment", keys: "enter", text: "Enter it: devenv shell in a new terminal" },
-  { group: "Environment", keys: "e", text: "Edit its devenv.nix in your editor" },
+  { group: "Environment", keys: "e", text: "Edit its devenv.nix in your editor (not for bound environments)" },
   { group: "Environment", keys: "s", text: "Start its processes (devenv up -d), or stop them" },
   { group: "Environment", keys: "p", text: "Check whether its processes are running" },
   { group: "Environment", keys: "g", text: "Update its lock (devenv update), with the log in the panel" },
@@ -222,6 +222,21 @@ function parseJson(raw) {
   try { return JSON.parse(str(raw)) } catch (e) { return null }
 }
 
+// Saved profiles of a bound environment: names only, anything else dropped.
+function parseProfiles(raw) {
+  var out = []
+  if (!raw || typeof raw !== "object" || raw.length === undefined) return out
+  for (var i = 0; i < raw.length; i++) {
+    if (typeof raw[i] === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(raw[i])) out.push(raw[i])
+  }
+  return out
+}
+
+// Bound with `devenv --from`: the configuration is not in the directory.
+function isBound(env) {
+  return !!env && str(env.from) !== ""
+}
+
 // `list --json`. A row missing its path is dropped; every other field has a
 // safe default, so an older or newer CLI never breaks the list.
 function parseList(raw) {
@@ -241,7 +256,9 @@ function parseList(raw) {
       template: /^[a-z0-9-]+$/.test(str(r.template)) ? str(r.template) : "custom",
       hasProcesses: r.hasProcesses === true,
       dev: typeof r.dev === "number" ? r.dev : -1,
-      mtime: typeof r.mtime === "number" ? r.mtime : 0
+      mtime: typeof r.mtime === "number" ? r.mtime : 0,
+      from: sanitize(r.from, 200),
+      profiles: parseProfiles(r.profiles)
     })
   }
   // The roots as the CLI resolved them (~/Source may be a symlink). Removal
@@ -374,13 +391,13 @@ function filterEnvs(envs, query) {
   var list = envs || []
   for (var i = 0; i < list.length; i++) {
     var e = list[i]
-    if ((e.name + " " + e.path + " " + e.template).toLowerCase().indexOf(q) !== -1) out.push(e)
+    if ((e.name + " " + e.path + " " + e.template + " " + str(e.from)).toLowerCase().indexOf(q) !== -1) out.push(e)
   }
   return out
 }
 
-var ROW_FIELDS = ["name", "subtitle", "template", "path", "allowed", "lockfile", "hasProcesses"]
-var ROW_BOOLEANS = ["allowed", "lockfile", "hasProcesses"]
+var ROW_FIELDS = ["name", "subtitle", "template", "detail", "path", "allowed", "lockfile", "hasProcesses", "bound"]
+var ROW_BOOLEANS = ["allowed", "lockfile", "hasProcesses", "bound"]
 
 // A ListModel takes its role types from the first object it is handed and
 // drops any field it cannot type, so hand it a fresh plain object with every
@@ -407,6 +424,15 @@ function displayPath(path, rootMap, home) {
   return tildePath(p, home)
 }
 
+// The caption's middle part: the template, or where a bound one comes from.
+function detailText(env) {
+  if (!isBound(env)) return str(env && env.template)
+  var profiles = env.profiles && env.profiles.length ? env.profiles : []
+  var list = []
+  for (var i = 0; i < profiles.length; i++) list.push(profiles[i])
+  return join(["from " + str(env.from), list.length ? "profiles " + list.join(", ") : ""])
+}
+
 function rowsFor(envs, home, rootMap) {
   var out = []
   var sorted = sortEnvs(envs)
@@ -418,10 +444,12 @@ function rowsFor(envs, home, rootMap) {
       name: e.name,
       subtitle: displayPath(parent, rootMap, home),
       template: e.template,
+      detail: detailText(e),
       path: e.path,
       allowed: e.allowed,
       lockfile: e.lockfile,
-      hasProcesses: e.hasProcesses
+      hasProcesses: e.hasProcesses,
+      bound: isBound(e)
     })
   }
   return out
@@ -748,6 +776,18 @@ var TIERS = [
   { id: "folder", label: "Delete the folder", text: "Delete the whole project folder, code included. Type its name to confirm." }
 ]
 
+// A bound environment has nothing of its own to delete: revoke only, and the
+// chooser draws each tier's `text`, so revoke says what else it forgets.
+function tiersFor(env) {
+  if (!isBound(env)) return TIERS
+  return [{ id: "revoke", label: TIERS[0].label, text: boundRevokeText(env) }]
+}
+
+function boundRevokeText(env) {
+  return "Forgets that it is bound to " + sanitize(env.from, 120) +
+    ", and its saved profiles. Nothing is deleted. It leaves this list: without the binding devenv sees no environment here."
+}
+
 function tierById(id) {
   for (var i = 0; i < TIERS.length; i++) if (TIERS[i].id === id) return TIERS[i]
   return null
@@ -761,6 +801,7 @@ function removeRefusal(env, tier, roots, home, status, typedName) {
   var t = tierById(tier)
   if (!t) return "Pick what to remove"
   if (t.id === "revoke") return ""
+  if (isBound(env)) return "Bound to " + sanitize(env.from, 80) + ": nothing here to remove; revoke forgets the binding"
   var p = stripSlash(env.path)
   if (p === "/") return "Refusing to touch /"
   if (p === stripSlash(home)) return "Refusing to touch your home directory"
@@ -795,6 +836,7 @@ function removeArgv(env, tier, roots) {
 function removeMessage(env, tier, home) {
   var t = tierById(tier)
   if (!env || !t) return ""
+  if (t.id === "revoke" && isBound(env)) return t.label + ": " + tildePath(env.path, home) + "\n" + boundRevokeText(env)
   return t.label + ": " + tildePath(env.path, home) + "\n" + t.text
 }
 
@@ -817,9 +859,10 @@ function actionsFor(row, lock, deps, status) {
   var cli = !(deps && deps.cli === false)
   var devenv = !(deps && deps.devenv === false)
   var out = [
-    action("enter", Glyph.enter, "Enter: devenv shell  (enter)", false, devenv),
-    action("edit", Glyph.edit, "Edit devenv.nix  (e)", false, true)
+    action("enter", Glyph.enter, "Enter: devenv shell  (enter)", false, devenv)
   ]
+  // A bound environment's devenv.nix is not here to edit.
+  if (!row.bound) out.push(action("edit", Glyph.edit, "Edit devenv.nix  (e)", false, true))
   if (row.hasProcesses) {
     if (status && status.state === "running") out.push(action("down", Glyph.stop, "Stop processes  (s)", true, devenv))
     else out.push(action("up", Glyph.play, "Start processes  (s)", false, devenv && free))
