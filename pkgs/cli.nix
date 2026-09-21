@@ -6,6 +6,7 @@
 # which is this file plus whatever personal templates exist.
 {
   lib,
+  stdenv,
   runCommand,
   writeText,
   writeShellApplication,
@@ -17,7 +18,11 @@
 }:
 let
   templates = import ../data/templates.nix;
-  ids = lib.attrNames templates;
+  # An entry with `systems` exists only there: hidden elsewhere means absent
+  # from the index, from share/presets, and from templates-check.
+  ids = lib.filter (
+    n: !(templates.${n} ? systems) || lib.elem stdenv.hostPlatform.system templates.${n}.systems
+  ) (lib.attrNames templates);
   presetIds = lib.filter (n: templates.${n}.kind == "preset") ids;
 
   # Nix '' strings strip common indentation, so the catalogue is flush left and
@@ -38,6 +43,7 @@ let
       inherit id;
       inherit (t) kind group label note;
     }
+    // lib.optionalAttrs (t ? yaml) { yaml = true; }
     // lib.optionalAttrs (t.kind == "generator") {
       inherit (t) flake rev providers;
       honours_git = t.honours.git;
@@ -54,6 +60,10 @@ let
     + lib.concatMapStrings (n: ''
       cp ${writeText "${n}.nix" (indent templates.${n}.lines)} $out/presets/${n}.nix
     '') presetIds
+    # YAML indentation is meaning, so the keys go in verbatim.
+    + lib.concatMapStrings (n: ''
+      cp ${writeText "${n}.yaml" templates.${n}.yaml} $out/presets/${n}.yaml
+    '') (lib.filter (n: templates.${n} ? yaml) presetIds)
   );
 in
 writeShellApplication {
@@ -69,5 +79,8 @@ writeShellApplication {
     share=${share}
   ''
   + builtins.readFile ./cli.sh;
-  passthru = { inherit share; };
+  passthru = {
+    inherit share;
+    templateIds = ids;
+  };
 }
