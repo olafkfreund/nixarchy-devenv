@@ -15,8 +15,9 @@ any Omarchy with devenv installed.
 
 - **Lists your environments.** It finds every `devenv.nix` under your project
   roots (three levels deep, without following symlinks inside a root), plus
-  anything you have `devenv allow`ed elsewhere. Allowed projects come first,
-  then the most recently edited.
+  anything you have `devenv allow`ed elsewhere, including directories bound to
+  an out-of-tree configuration with `devenv --from`. Allowed projects come
+  first, then the most recently edited.
 - **Enter** opens `devenv shell` in a new terminal, in the project.
   **e** opens `devenv.nix` in your editor.
 - **s** starts the project's processes (`devenv up -d`) or stops them. Stop is

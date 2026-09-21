@@ -119,7 +119,7 @@ On nixarchy it is already under Apps. Elsewhere, paste the row from
 | <kbd>j</kbd> <kbd>k</kbd> <kbd>↑</kbd> <kbd>↓</kbd> | move; up from the first row goes to the filter |
 | <kbd>/</kbd> | filter by name, folder or template |
 | <kbd>enter</kbd> | enter: `devenv shell` in a terminal |
-| <kbd>e</kbd> | edit `devenv.nix` |
+| <kbd>e</kbd> | edit `devenv.nix` (not for bound environments) |
 | <kbd>s</kbd> | start or stop processes |
 | <kbd>p</kbd> | check the processes again |
 | <kbd>g</kbd> | update the lock |
@@ -213,6 +213,25 @@ everything again right before it acts. It refuses:
 - a folder that moved to another device since it was listed.
 
 `.envrc` is never removed.
+
+### Bound environments
+
+`devenv --from <source> allow` binds a directory to a configuration that lives
+somewhere else, such as a flake on GitHub. The directory has a working
+environment but no `devenv.nix` of its own. The list shows it with
+**from &lt;source&gt;** where a template would be, and its saved profiles if it
+has any. It reads the source as text and never fetches it.
+
+- <kbd>enter</kbd>, <kbd>s</kbd>, <kbd>g</kbd> and <kbd>p</kbd> work as usual.
+  <kbd>s</kbd> offers Start even though the plugin cannot tell whether the
+  source defines processes; if it defines none, `devenv up` says so in the log.
+- <kbd>e</kbd> does nothing: there is no `devenv.nix` here to edit.
+- <kbd>x</kbd> offers **Revoke** only. It forgets the binding, its source and
+  its saved profiles, all of which devenv keeps in one entry. Nothing is
+  deleted, and the row then leaves the list.
+- A `devenv.nix` in the directory, or in any folder above it, wins over the
+  binding, as it does in devenv. Such a directory is listed as an ordinary
+  project, or as part of the one above it.
 
 ### devenv gc
 
