@@ -74,16 +74,19 @@ What devenv v2.3.1 does (read from its source, not from docs):
   the option names in `data/templates.nix`. Lines the CLI cannot parse
   continue to be counted as skipped, not guessed at.
 
+## Decisions
+
+Answered by the owner on 2026-09-21:
+
+1. **Bound rows are listed wherever they are**, not only under a configured
+   project root. Local rows found through `allowed` are not limited to
+   roots either, so a binding is never invisible.
+2. **Update is offered on bound rows** as on local ones. The lock lives in the
+   bound directory; the inputs come from the source's `devenv.yaml`.
+3. **A bound directory with its own `devenv.nix` is an ordinary local row.**
+   devenv uses the local project and ignores the binding
+   (`find_project_root` wins), so the row shows what devenv will actually do.
+
 ## Open questions
 
-1. Should bound rows be listed only when their directory is **under a
-   configured project root**, or wherever they are? Local rows found through
-   `allowed` today are not limited to roots. Proposal: same as local rows, not
-   limited, so a binding is never invisible.
-2. `devenv update` in a bound directory: the lock lives in that directory, but
-   the inputs come from the remote source's `devenv.yaml`. Offer update as
-   usual (proposal), or leave it out until it has been tried against a real
-   binding?
-3. A bound directory can also contain a local `devenv.nix`. devenv then uses
-   the local project and ignores the binding (`find_project_root` wins). Show
-   it as an ordinary local row (proposal), or flag the conflict?
+None.
