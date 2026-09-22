@@ -15,7 +15,7 @@ import "Model.js" as Model
 Singleton {
   id: root
 
-  // {projectRoots, refreshIntervalSec, terminalEditor, hideWhenEmpty}.
+  // {projectRoots, refreshIntervalSec, terminalEditor}.
   // Whichever surface opened last writes it; both read the same bar entry.
   property var settings: ({})
 
@@ -87,7 +87,6 @@ Singleton {
   property var canonicalRoots: []
   property var rootMap: []
   property var warnings: []
-  property int skipped: 0
   property var templates: []
   readonly property var counts: Model.counts(envs)
 
@@ -106,6 +105,7 @@ Singleton {
   // ------------------------------------------------------------ the lock
 
   property string pendingName: ""
+  readonly property string pendingText: pendingVerb + (pendingName ? " " + pendingName : "")
   property string pendingVerb: ""
   readonly property bool mutating: actionProcess.running || streamProcess.running
 
@@ -113,7 +113,6 @@ Singleton {
 
   property var log: []
   property string streamTitle: ""
-  property string streamName: ""
   property int streamExit: -1
   readonly property bool streaming: streamProcess.running
 
@@ -190,7 +189,7 @@ Singleton {
 
   function busyText() {
     if (streamProcess.running) return "Busy: " + root.streamTitle + " — press o to watch"
-    return "Busy: " + root.pendingVerb + (root.pendingName ? " " + root.pendingName : "") + " — wait for it to finish"
+    return "Busy: " + root.pendingText + " — wait for it to finish"
   }
 
   // Only environments the CLI listed: a path that arrives by IPC or a stale
@@ -203,10 +202,16 @@ Singleton {
 
   // Every short mutation comes through here; refused, with a reason, while
   // anything else mutates. stdin is closed so a question gets EOF, not a hang.
-  function run(argv, verb, name) {
+  // The shared door for every mutation: one at a time, and never a null argv.
+  function canMutate(argv) {
     if (root.mutating) { root.lastError = root.busyText(); return false }
     if (!argv) return false
     root.lastError = ""
+    return true
+  }
+
+  function run(argv, verb, name) {
+    if (!canMutate(argv)) return false
     root.pendingVerb = verb
     root.pendingName = name || ""
     actionProcess.command = argv
@@ -231,12 +236,9 @@ Singleton {
     return true
   }
 
-  function startStream(argv, title, name) {
-    if (root.mutating) { root.lastError = root.busyText(); return false }
-    if (!argv) return false
-    root.lastError = ""
+  function startStream(argv, title) {
+    if (!canMutate(argv)) return false
     root.streamTitle = title
-    root.streamName = name || ""
     root.streamExit = -1
     root.log = ["$ " + title]
     streamProcess.command = argv
@@ -246,17 +248,17 @@ Singleton {
 
   function update(path) {
     var e = envFor(path)
-    return !!e && startStream(Model.updateArgv(e.path), "update " + e.name, e.name)
+    return !!e && startStream(Model.updateArgv(e.path), "update " + e.name)
   }
 
   // Not `gc`: that name is the QML engine's own garbage collector.
-  function runGc() { return startStream(Model.gcArgv(root.hostHome), "devenv gc", "") }
+  function runGc() { return startStream(Model.gcArgv(root.hostHome), "devenv gc") }
 
   // `result` is Model.validateForm's answer; the form has already shown its
   // errors, so a not-ok result here is a no.
   function create(form, result) {
     if (!result || !result.ok) return false
-    return startStream(result.argv, Model.formSummary(form), form ? String(form.name) : "")
+    return startStream(result.argv, Model.formSummary(form))
   }
 
   function remove(path, tier, typedName) {
@@ -311,7 +313,7 @@ Singleton {
       deps: root.deps,
       roots: root.roots,
       mutating: root.mutating,
-      pending: root.pendingVerb + (root.pendingName ? " " + root.pendingName : ""),
+      pending: root.pendingText,
       streaming: root.streaming,
       stream: root.streamTitle,
       environments: root.envs.length,
@@ -340,7 +342,6 @@ Singleton {
       root.rootMap = parsed.rootMap
       root.warnings = parsed.warnings.concat(root.rootsInfo.rejected.length
         ? ["Not a usable root: " + root.rootsInfo.rejected.join(", ")] : [])
-      root.skipped = parsed.skipped
     }
   }
 

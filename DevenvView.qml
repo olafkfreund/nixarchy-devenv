@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import Quickshell
 import qs.Ui
 import qs.Commons
 import "Model.js" as Model
@@ -41,7 +40,8 @@ FocusScope {
   property string removeTyped: ""
   readonly property bool removeOpen: removeEnv !== null
   readonly property var removeTiers: Model.tiersFor(removeEnv)
-  readonly property string removeTierId: removeTiers[Math.min(removeTier, removeTiers.length - 1)].id
+  readonly property var removeTierEntry: removeTiers[Math.min(removeTier, removeTiers.length - 1)]
+  readonly property string removeTierId: removeTierEntry.id
   readonly property string removeWhy: removeEnv
     ? Model.removeRefusal(removeEnv, removeTierId, DevenvState.canonicalRoots, DevenvState.hostHome,
         DevenvState.statusFor(removeEnv.path), removeTyped)
@@ -62,7 +62,6 @@ FocusScope {
   readonly property var rows: Model.rowsFor(visibleEnvs, DevenvState.hostHome, DevenvState.rootMap)
   readonly property var cursorRow: cursorIndex >= 0 && cursorIndex < rows.length ? rows[cursorIndex] : null
   readonly property var cursorEnv: cursorRow ? Model.envByPath(DevenvState.envs, cursorRow.path) : null
-  readonly property var lock: ({ mutating: DevenvState.mutating })
 
   onRowsChanged: root.rememberCursor(Model.cursorAfter(root.cursorActive ? root.cursorKey : "", root.rows, root.cursorIndex))
 
@@ -160,7 +159,7 @@ FocusScope {
     var status = DevenvState.statusFor(env.path)
     if (verb === "copy") { DevenvState.copyPath(path); return }
     if (verb === "remove") { askRemove(env); return }
-    if (!Model.allowsVerb(row, verb, root.lock, DevenvState.deps, status)) {
+    if (!Model.allowsVerb(row, verb, { mutating: DevenvState.mutating }, DevenvState.deps, status)) {
       if (DevenvState.mutating) DevenvState.lastError = DevenvState.busyText()
       else DevenvState.lastError = Model.dependencyText(DevenvState.deps) || ""
       return
@@ -209,7 +208,6 @@ FocusScope {
 
   function closeRemove() {
     root.removeEnv = null
-    root.removeTyped = ""
     Qt.callLater(root.focusForMode)
   }
 
@@ -758,7 +756,7 @@ FocusScope {
           Text {
             width: parent.width
             horizontalAlignment: Text.AlignRight
-            text: root.removeWhy === "" ? "↑↓ choose   enter " + root.removeTiers[Math.min(root.removeTier, root.removeTiers.length - 1)].label.toLowerCase() + "   esc cancel"
+            text: root.removeWhy === "" ? "↑↓ choose   enter " + root.removeTierEntry.label.toLowerCase() + "   esc cancel"
               : "↑↓ choose   esc cancel"
             textFormat: Text.PlainText
             color: root.foreground
