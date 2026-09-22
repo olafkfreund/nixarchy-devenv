@@ -19,27 +19,6 @@ function load(file) {
 
 const Model = load("Model.js")
 
-let passed = 0
-const failures = []
-
-function test(name, fn) {
-  try {
-    fn()
-    passed += 1
-  } catch (error) {
-    failures.push({ name: name, error: error })
-  }
-}
-
-function report() {
-  for (const failure of failures) {
-    console.error("FAIL  " + failure.name)
-    console.error("      " + String(failure.error.message).split("\n").join("\n      "))
-  }
-  console.log(`${passed} passed, ${failures.length} failed`)
-  return failures.length === 0 ? 0 : 1
-}
-
 const HOME = "/home/user"
 
 // One row of `nixarchy-devenv list --json`, as pkgs/cli.sh prints it.
@@ -81,10 +60,9 @@ const HOSTILE = [
 ]
 
 module.exports = {
-  test: test,
+  test: require("node:test").test,
   eq: assert.deepStrictEqual,
   ok: assert.ok,
-  report: report,
   listRow: listRow,
   env: env,
   templates: templates,

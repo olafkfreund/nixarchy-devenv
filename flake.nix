@@ -119,7 +119,7 @@
             ''
               cp -r ${./tests} tests
               cp ${./Model.js} Model.js
-              node tests/run.js
+              node --test 'tests/model/*.test.js'
               touch "$out"
             '';
 

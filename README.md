@@ -141,7 +141,7 @@ layout):
 See [AGENTS.md](AGENTS.md). In short:
 
 ```console
-$ node tests/run.js                 # Model.js
+$ node --test 'tests/model/*.test.js'   # Model.js
 $ nix flake check                   # the above, the CLI tests, manifest and repo checks
 $ nix run .#templates-check         # every template against a real devenv (network)
 ```
