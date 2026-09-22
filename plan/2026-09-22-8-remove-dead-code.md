@@ -78,14 +78,15 @@ per step, citing the step: `refactor(model): … (#8, step 2)`.
      - add `removeTierEntry`, used at L44 and L761;
      - inline `lock`;
      - delete the extra `removeTyped = ""` in `closeRemove`;
-   - `Panel.qml`: ~~delete `import Quickshell`~~ *(reverted after the live
-     check)*. Without it, the bar widget died the first time `shell.json`
-     changed: its IPC target vanished, and the bar logged `hideTooltip is not
-     a function`. Bisected on razer: the branch plugin with `main`'s Panel.qml
-     survives the edit, and the branch Panel.qml with only this import put back
-     survives it too. The shipped plugin survives it as well. The import stays,
-     with a comment saying why. `DevenvView.qml`'s removal is not implicated:
-     both bisect runs used it. Then drop `hideWhenEmpty` from the
+   - `Panel.qml`: ~~delete `import Quickshell`~~ *(kept; see the step 6
+     revision)*. The bar broke during the live check and I first blamed this
+     import, on one run per variant. Repeated trials disproved that: the bar
+     breaks on a `shell.json` edit with the **shipped** plugin too (2 of 3 as a
+     copy), and with the branch without the import (2 of 3 as a symlink). It is
+     Omarchy's bar (`Bar.qml: pluginBarApiFor is not a function`), tracked in
+     nixarchy. Removing the import was never shown to break anything, but it
+     saves one line and cost an afternoon, so it stays, without a comment.
+     Then drop `hideWhenEmpty` from the
      pushed settings, and DevenvState's comment mention; pass
      `refreshIntervalSec` unclamped;
    - `Menu.qml`: delete the empty `onSwitchPanelRequested` handler and its
@@ -137,6 +138,15 @@ per step, citing the step: `refactor(model): … (#8, step 2)`.
 6. **Live on razer** (AGENTS.md "Verifying live"). The plugin is installed
    there by Home Manager, so the test copy replaces its link and the link is
    restored afterwards.
+   *Revised on 2026-09-22:* the first attempt broke the owner's bar. Any
+   `shell.json` edit while the shell runs can trip an Omarchy 4.0.4 bar bug,
+   and `docs/capture.sh --setup` makes one. So the rerun:
+   - installs the branch plugin as a **symlink** to its store path, the way
+     Home Manager does, not as a copy;
+   - makes the test projects under a `mktemp -d` root inside `~/Projects` (an
+     existing root, so no setting changes), with `t1` local and `t2` bound by
+     `devenv --from`, instead of running `capture.sh`;
+   - runs only when the owner says razer is free.
    - Read the bus and announce first. Check the nixarchy CI load before any
      local build.
    - Record `shell.json`'s checksum, the plugin link target, the enabled-once
