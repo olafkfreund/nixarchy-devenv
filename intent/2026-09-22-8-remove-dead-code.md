@@ -88,17 +88,17 @@ change has to keep working, for no behaviour at all.
   test for it, not a deleted one.
 - **No new dependencies.** `node:test` ships with Node.
 
+## Decisions
+
+The owner approved this intent on 2026-09-22 with the proposals as written:
+
+1. **The test runner:** replace it with `node:test`, and update the command in
+   `flake.nix`, AGENTS.md and the README.
+2. **`import Quickshell`:** remove it from `DevenvView.qml` and `Panel.qml`,
+   proven by a live load on razer.
+3. **`CreateForm.templateChoices`:** move it into a Node-tested
+   `Model.templateChoices(templates, filter)`, which replaces `templateOrder`.
+
 ## Open questions
 
-1. **The test runner.** Should the hand-rolled runner be replaced by
-   `node:test`? It saves about 30 lines, but the test command changes in
-   `flake.nix`, AGENTS.md and the README, and the harness's output format
-   changes. Proposal: yes.
-2. **`import Quickshell`.** grep finds no use in `DevenvView.qml` or
-   `Panel.qml`, but QML imports can supply types implicitly. Remove both, and
-   prove it by a live load on razer (the log checked for errors, both surfaces
-   opened)? Or leave them? Proposal: remove, and verify live.
-3. **`CreateForm.templateChoices`.** Move it into a Node-tested
-   `Model.templateChoices(templates, filter)`, which replaces `templateOrder`?
-   Or simply delete `templateOrder` and leave the QML as it is? Proposal: move
-   it. That is the AGENTS.md rule, and it is net shorter.
+None.
