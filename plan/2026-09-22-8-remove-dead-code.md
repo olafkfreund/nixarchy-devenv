@@ -78,7 +78,14 @@ per step, citing the step: `refactor(model): … (#8, step 2)`.
      - add `removeTierEntry`, used at L44 and L761;
      - inline `lock`;
      - delete the extra `removeTyped = ""` in `closeRemove`;
-   - `Panel.qml`: delete `import Quickshell`; drop `hideWhenEmpty` from the
+   - `Panel.qml`: ~~delete `import Quickshell`~~ *(reverted after the live
+     check)*. Without it, the bar widget died the first time `shell.json`
+     changed: its IPC target vanished, and the bar logged `hideTooltip is not
+     a function`. Bisected on razer: the branch plugin with `main`'s Panel.qml
+     survives the edit, and the branch Panel.qml with only this import put back
+     survives it too. The shipped plugin survives it as well. The import stays,
+     with a comment saying why. `DevenvView.qml`'s removal is not implicated:
+     both bisect runs used it. Then drop `hideWhenEmpty` from the
      pushed settings, and DevenvState's comment mention; pass
      `refreshIntervalSec` unclamped;
    - `Menu.qml`: delete the empty `onSwitchPanelRequested` handler and its

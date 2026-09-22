@@ -1,4 +1,7 @@
 import QtQuick
+// No Quickshell name appears below, but this import is not unused: without it
+// the bar widget dies the first time shell.json changes (#8, found on razer).
+import Quickshell
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
