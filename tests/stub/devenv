@@ -29,6 +29,9 @@ inputs:
 # If you're using non-OSS software, you can set allow_unfree to true.
 # allow_unfree: true
 YAML
+    # STUB_INIT_NOPLACEHOLDER=1: a scaffold without the commented language
+    # line, so the preset takes the splice's fallback path.
+    if [ "${STUB_INIT_NOPLACEHOLDER:-}" = 1 ]; then sed -i '/# languages\.rust\.enable/d' devenv.nix; fi
     if [ "${STUB_INIT_NIXPKGS:-}" = 1 ]; then printf 'nixpkgs:\n  allow_broken: false\n' >>devenv.yaml; fi
     printf '.devenv*\n' >.gitignore
     ;;

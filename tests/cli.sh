@@ -91,6 +91,13 @@ grep -q '^  languages.python = {' "$d/devenv.nix" || bad "init python: indented 
 ! grep -q "$d :: allow" "$STUB_LOG" || bad "init python: no allow unless asked"
 [ ! -d "$d/.git" ] || bad "init --no-git: no repository"
 
+# Without the placeholder line, the preset goes before the last `}` instead.
+d2=$(fresh)
+expect 0 "init python, fallback splice" -- with_devenv env STUB_INIT_NOPLACEHOLDER=1 bash -c "cd '$d2' && '$cli' init --no-git python"
+[ "$(sed -n '$p' "$d2/devenv.nix")" = "}" ] &&
+  sed -n '/packages = \[ pkgs.git \];/,$p' "$d2/devenv.nix" | grep -q '^  languages.python = {' ||
+  bad "fallback splice: preset after the scaffold's lines and before its closing }"
+
 expect 2 "init twice refuses" -- with_devenv bash -c "cd '$d' && '$cli' init python"
 grep -q 'languages.python' "$root/err" || bad "refusal prints the lines to paste"
 
@@ -224,7 +231,7 @@ row "$L/boundlocal" | jq -e '.from == ""' >/dev/null || bad "list: its own deven
 ! paths | grep -q "/badfrom$" || bad "list: a non-string from is not a binding"
 [ "$before" = "$(sha256sum "$allowed")" ] || bad "list: allow file unchanged"
 
-DEVENV_HOME="$root/dh" expect 0 "list with DEVENV_HOME" -- env DEVENV_HOME="$root/dh" "$cli" list --json
+expect 0 "list with DEVENV_HOME" -- env DEVENV_HOME="$root/dh" "$cli" list --json
 jq -e '.rows == [] and .skipped == 0' "$out" >/dev/null || bad "list: DEVENV_HOME replaces the XDG allow file"
 mkdir -p "$root/xdg2/devenv" && echo "{\"path\":\"$O/outside\"}" >"$root/xdg2/devenv/allowed"
 expect 0 "list with XDG_DATA_HOME" -- env XDG_DATA_HOME="$root/xdg2" "$cli" list --json
@@ -241,7 +248,7 @@ expect 1 "list without --json" -- "$cli" list
 # ---- status -------------------------------------------------------------------
 
 S=$(fresh)
-STUB_PROCESSES=running expect 0 "status running" -- with_devenv env STUB_PROCESSES=running "$cli" status --json "$S"
+expect 0 "status running" -- with_devenv env STUB_PROCESSES=running "$cli" status --json "$S"
 jq -e '.state == "running" and (.processes | map(.name) == ["web","db"])' "$root/out" >/dev/null || bad "status: running parsed"
 expect 0 "status: progress only, exit 0" -- with_devenv env STUB_PROCESSES=noise "$cli" status --json "$S"
 jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: exit 0 with no process rows is unknown"
@@ -268,7 +275,7 @@ mkproj() {
   echo "$d"
 }
 dev_of() { stat -c %d "$1"; }
-rm_cli() { with_devenv env STUB_PROCESSES="${STUB_PROCESSES:-stopped}" "$cli" remove "$@"; }
+rm_cli() { with_devenv "$cli" remove "$@"; }
 untouched() { [ -f "$1/devenv.nix" ] && [ -f "$1/src/main.py" ] && [ -f "$1/.devenv/state/db/x" ] || bad "$2: nothing may be deleted"; }
 
 p=$(mkproj a)
@@ -297,9 +304,9 @@ for t in files state folder; do
   [ -f "$B/bound/.devenv/state/db/x" ] && [ -f "$B/bound/devenv.lock" ] || bad "remove: bound, tier $t: nothing may be deleted"
 done
 [ -d "$R/root/plain" ] || bad "remove: no devenv.nix: nothing may be deleted"
-expect 2 "remove: running" -- env STUB_PROCESSES=running bash -c "$(declare -f rm_cli with_devenv); cli='$cli' here='$here' base_path='$base_path' rm_cli --tier files --confirm '$p' --dev '$d' '$p'"
+expect 2 "remove: running" -- with_devenv env STUB_PROCESSES=running "$cli" remove --tier files --confirm "$p" --dev "$d" "$p"
 untouched "$p" "running"
-expect 2 "remove: unknown" -- env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 bash -c "$(declare -f rm_cli with_devenv); cli='$cli' here='$here' base_path='$base_path' rm_cli --tier files --confirm '$p' --dev '$d' '$p'"
+expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --dev "$d" "$p"
 untouched "$p" "unknown"
 
 : >"$STUB_LOG"

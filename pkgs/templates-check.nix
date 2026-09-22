@@ -46,15 +46,16 @@ writeShellApplication {
         "$@"
     }
 
+    index=$(iso nixarchy-devenv templates --json)
     if [ $# -gt 0 ]; then
       ids=("$@")
     else
-      mapfile -t ids < <(iso nixarchy-devenv templates --json | jq -r '.[].id')
+      mapfile -t ids < <(jq -r '.[].id' <<<"$index")
     fi
 
     failed=()
     for id in "''${ids[@]}"; do
-      kind=$(iso nixarchy-devenv templates --json | jq -r --arg id "$id" '.[] | select(.id == $id) | .kind')
+      kind=$(jq -r --arg id "$id" '.[] | select(.id == $id) | .kind' <<<"$index")
       args=(--no-git)
       extra=()
       if [ "$kind" = generator ]; then args=(); extra=(aws); fi

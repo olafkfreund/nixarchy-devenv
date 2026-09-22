@@ -88,8 +88,5 @@ writeShellApplication {
     share=${share}
   ''
   + builtins.readFile ./cli.sh;
-  passthru = {
-    inherit share;
-    templateIds = ids;
-  };
+  passthru.templateIds = ids;
 }

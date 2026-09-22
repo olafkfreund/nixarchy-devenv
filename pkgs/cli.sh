@@ -118,10 +118,7 @@ splice_preset() {
     }" devenv.nix
   else
     close=$(grep -n '^}' devenv.nix | tail -1 | cut -d: -f1)
-    head -n "$((close - 1))" devenv.nix >devenv.nix.new
-    cat "$file" >>devenv.nix.new
-    tail -n +"$close" devenv.nix >>devenv.nix.new
-    mv devenv.nix.new devenv.nix
+    sed -i "$((close - 1))r $file" devenv.nix
   fi
 }
 
@@ -259,12 +256,8 @@ cmd_new() {
     die 1 "usage: nixarchy-devenv new [--allow] [--no-git] --parent DIR --name NAME <template> [provider...]"
   [[ $name =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]] ||
     die 1 "project names are letters, digits, '.', '_' and '-', starting with a letter, digit or '_'."
-  case "$parent" in
-    \~) parent=$HOME ;;
-    \~/*) parent="$HOME/${parent:2}" ;;
-    /*) ;;
-    *) die 1 "the parent directory must be an absolute path or start with ~." ;;
-  esac
+  parent=$(expand_root "$parent")
+  [[ $parent == /* ]] || die 1 "the parent directory must be an absolute path or start with ~."
   [ -d "$parent" ] || die 2 "$parent does not exist."
   local dir="$parent/$name"
   [ ! -e "$dir" ] && [ ! -L "$dir" ] || die 2 "$dir already exists. Pick another name, or run init inside it."
@@ -282,14 +275,6 @@ cmd_new() {
 }
 
 # ---- list ---------------------------------------------------------------------
-
-allowed_file() {
-  if [ -n "${DEVENV_HOME:-}" ]; then
-    echo "$DEVENV_HOME/allowed"
-  else
-    echo "${XDG_DATA_HOME:-$HOME/.local/share}/devenv/allowed"
-  fi
-}
 
 expand_root() {
   case "$1" in
@@ -358,7 +343,8 @@ cmd_list() {
   # with a string path is counted rather than fatal -- devenv may be halfway
   # through writing it.
   local af skipped=0 total=0 good=0
-  af=$(allowed_file)
+  af=${DEVENV_HOME:+$DEVENV_HOME/allowed}
+  af=${af:-${XDG_DATA_HOME:-$HOME/.local/share}/devenv/allowed}
   if [ -f "$af" ]; then
     total=$(grep -c . "$af" || true)
     jq -R -r 'fromjson? | .path? | select(type == "string" and startswith("/"))' "$af" \
@@ -524,13 +510,11 @@ cmd_remove() {
     (cd "$dir" && devenv revoke) >/dev/null 2>&1 || echo "nixarchy-devenv: devenv revoke failed; continuing" >&2
   fi
 
-  case "$tier" in
-    folder)
-      rm -rf -- "$dir" || die 4 "could not remove $dir."
-      echo "Removed $dir."
-      return
-      ;;
-  esac
+  if [ "$tier" = folder ]; then
+    rm -rf -- "$dir" || die 4 "could not remove $dir."
+    echo "Removed $dir."
+    return
+  fi
 
   rm -f -- "$dir/devenv.nix" "$dir/devenv.yaml" "$dir/devenv.lock" "$dir/.devenv-template"
   if [ -L "$dir/.devenv" ]; then

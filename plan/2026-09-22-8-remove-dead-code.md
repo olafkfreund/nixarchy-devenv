@@ -94,7 +94,11 @@ per step, citing the step: `refactor(model): … (#8, step 2)`.
      - inline `allowed_file()` as the two expansions;
      - the fallback splice becomes `sed -i "$((close - 1))r $file" devenv.nix`;
      - `cmd_new` uses `expand_root`;
-     - add `row_base DIR`, shared by both row builders;
+     - ~~add `row_base DIR`, shared by both row builders~~ *(skipped during
+       implementation)*. The builders share only path, name, lockfile and dev.
+       A helper saves about three lines in each but costs about six of its own
+       and an extra jq call per row: net zero lines for one more indirection,
+       the opposite of this task;
      - `remove`'s single-arm `case` becomes an `if`;
    - `cli.nix`: drop `passthru.share`;
    - `templates-check.nix`: one `templates --json`, captured before the loop;

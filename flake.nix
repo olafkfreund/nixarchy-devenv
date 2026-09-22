@@ -145,9 +145,6 @@
               if [ -n "$(find ${plugin} -mindepth 1 -type l)" ]; then
                 echo "symlink inside the package" >&2; exit 1
               fi
-              if grep -nwE 'pacman|yay' ${plugin}/*.qml ${plugin}/*.js; then
-                echo "Arch package manager reference above" >&2; exit 1
-              fi
               # A literal colour survives a theme switch and looks wrong.
               if grep -nE '"#[0-9a-fA-F]{3,8}"' ${plugin}/*.qml; then
                 echo "hardcoded colour above; use a Color.* token" >&2; exit 1
@@ -167,7 +164,7 @@
               du -sh ${self}/docs/img >&2
               echo "docs/img is over 8 MB" >&2; exit 1
             fi
-            if grep -rnwE 'pacman|yay' ${self}/pkgs ${self}/data; then
+            if grep -rnwE 'pacman|yay' ${self}/*.qml ${self}/*.js ${self}/pkgs ${self}/data; then
               echo "Arch package manager reference above" >&2; exit 1
             fi
             touch "$out"
