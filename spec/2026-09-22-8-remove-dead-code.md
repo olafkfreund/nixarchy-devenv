@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 8
 intent: intent/2026-09-22-8-remove-dead-code.md
 ---
