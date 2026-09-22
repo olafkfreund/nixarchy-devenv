@@ -75,7 +75,17 @@ test("parseTemplates drops bad ids and bad providers", () => {
 test("templateGroups orders sections, unknown groups last", () => {
   const t = templates().concat(Model.parseTemplates(JSON.stringify([{ id: "z", group: "Weird" }])))
   eq(Model.templateGroups(t).map(g => g.title), ["Languages", "Data & ML", "Mobile", "Cloud", "Yours", "Weird"])
-  eq(Model.templateOrder(t), ["python", "ml", "flutter", "cloud", "mine", "z"])
+  eq(Model.templateChoices(t, "").map(x => x.id), ["python", "ml", "flutter", "cloud", "mine", "z"])
+})
+
+test("templateChoices narrows by id, label or group, ignoring case", () => {
+  const ids = q => Model.templateChoices(templates(), q).map(x => x.id)
+  eq(ids(""), ["python", "ml", "flutter", "cloud", "mine"])
+  eq(ids(undefined), ids(""))
+  eq(ids("PYTH"), ["python"])
+  eq(ids("cloud project"), ["cloud"])
+  eq(ids("mobile"), ["flutter"])
+  eq(ids("nothing-like-this"), [])
 })
 
 test("parseStatus: running, stopped, everything else unknown", () => {

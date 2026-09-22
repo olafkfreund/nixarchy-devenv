@@ -97,15 +97,8 @@ function hasControlChars(value) {
 }
 
 function sanitize(value, maxLength) {
-  var text = str(value)
   var limit = maxLength > 0 ? maxLength : MAX_FIELD
-  var out = ""
-  for (var i = 0; i < text.length; i++) {
-    var code = text.charCodeAt(i)
-    if (code < 0x20 || code === 0x7F || (code >= 0x80 && code <= 0x9F)) continue
-    out += text.charAt(i)
-  }
-  out = out.replace(/^\s+|\s+$/g, "")
+  var out = str(value).replace(/[\x00-\x1f\x7f-\x9f]/g, "").trim()
   if (out.length > limit) out = out.substring(0, limit - 1) + "…"
   return out
 }
@@ -306,11 +299,14 @@ function parseTemplates(raw) {
   return out
 }
 
-function templateById(templates, id) {
-  var list = templates || []
-  for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]
+// The first item whose `field` is `value`, or null.
+function findBy(list, field, value) {
+  var l = list || []
+  for (var i = 0; i < l.length; i++) if (l[i][field] === value) return l[i]
   return null
 }
+
+function templateById(templates, id) { return findBy(templates, "id", id) }
 
 // The picker's sections, in a fixed order; a group we do not know comes last
 // rather than disappearing.
@@ -330,11 +326,16 @@ function templateGroups(templates) {
 }
 
 // The flat order the picker's cursor walks, groups included.
-function templateOrder(templates) {
+// The form's template list: every group in order, narrowed by what was typed.
+function templateChoices(templates, filter) {
+  var q = str(filter).toLowerCase()
   var groups = templateGroups(templates)
   var out = []
   for (var g = 0; g < groups.length; g++) {
-    for (var t = 0; t < groups[g].templates.length; t++) out.push(groups[g].templates[t].id)
+    for (var t = 0; t < groups[g].templates.length; t++) {
+      var tpl = groups[g].templates[t]
+      if (!q || (tpl.id + " " + tpl.label + " " + tpl.group).toLowerCase().indexOf(q) !== -1) out.push(tpl)
+    }
   }
   return out
 }
@@ -356,8 +357,7 @@ function parseStatus(raw) {
 function statusText(status) {
   if (!status) return ""
   if (status.state === "running") {
-    var names = []
-    for (var i = 0; i < status.processes.length; i++) names.push(status.processes[i].name)
+    var names = Array.prototype.map.call(status.processes, function(p) { return p.name })
     return "running" + (names.length ? ": " + names.join(", ") : "")
   }
   if (status.state === "stopped") return "no processes running"
@@ -366,11 +366,7 @@ function statusText(status) {
 
 // ---------------------------------------------------------------- rows
 
-function envByPath(envs, path) {
-  var list = envs || []
-  for (var i = 0; i < list.length; i++) if (list[i].path === path) return list[i]
-  return null
-}
+function envByPath(envs, path) { return findBy(envs, "path", path) }
 
 // Allowed ones first (those are the projects you use), then the most
 // recently edited devenv.nix, then name.
@@ -427,10 +423,8 @@ function displayPath(path, rootMap, home) {
 // The caption's middle part: the template, or where a bound one comes from.
 function detailText(env) {
   if (!isBound(env)) return str(env && env.template)
-  var profiles = env.profiles && env.profiles.length ? env.profiles : []
-  var list = []
-  for (var i = 0; i < profiles.length; i++) list.push(profiles[i])
-  return join(["from " + str(env.from), list.length ? "profiles " + list.join(", ") : ""])
+  var profiles = Array.prototype.slice.call(env.profiles || []).join(", ")
+  return join(["from " + str(env.from), profiles ? "profiles " + profiles : ""])
 }
 
 function rowsFor(envs, home, rootMap) {
@@ -621,14 +615,20 @@ function inDir(path, argv) {
   return ["env", "-C", str(path)].concat(argv)
 }
 
-function listArgv(roots) {
-  var argv = [CLI, "list", "--json"]
+// ["--root", r, ...] for every root, or null if any is not a safe absolute path.
+function rootArgs(roots) {
   var list = roots || []
+  var out = []
   for (var i = 0; i < list.length; i++) {
     if (!isAbsPath(list[i])) return null
-    argv.push("--root", str(list[i]))
+    out.push("--root", str(list[i]))
   }
-  return argv
+  return out
+}
+
+function listArgv(roots) {
+  var r = rootArgs(roots)
+  return r ? [CLI, "list", "--json"].concat(r) : null
 }
 
 function templatesArgv() { return [CLI, "templates", "--json"] }
@@ -788,10 +788,7 @@ function boundRevokeText(env) {
     ", and its saved profiles. Nothing is deleted. It leaves this list: without the binding devenv sees no environment here."
 }
 
-function tierById(id) {
-  for (var i = 0; i < TIERS.length; i++) if (TIERS[i].id === id) return TIERS[i]
-  return null
-}
+function tierById(id) { return findBy(TIERS, "id", id) }
 
 // "" when removing is allowed, otherwise the reason. `status` is the parsed
 // status of this environment; unknown blocks, because a running database
@@ -823,21 +820,9 @@ function removeArgv(env, tier, roots) {
   if (!env || !t || !isAbsPath(env.path)) return null
   if (t.id === "revoke") return revokeArgv(env.path)
   if (typeof env.dev !== "number" || env.dev < 0) return null
-  var argv = [CLI, "remove", "--tier", t.id, "--confirm", str(env.path), "--dev", String(env.dev)]
-  var list = roots || []
-  for (var i = 0; i < list.length; i++) {
-    if (!isAbsPath(list[i])) return null
-    argv.push("--root", str(list[i]))
-  }
-  argv.push(str(env.path))
-  return argv
-}
-
-function removeMessage(env, tier, home) {
-  var t = tierById(tier)
-  if (!env || !t) return ""
-  if (t.id === "revoke" && isBound(env)) return t.label + ": " + tildePath(env.path, home) + "\n" + boundRevokeText(env)
-  return t.label + ": " + tildePath(env.path, home) + "\n" + t.text
+  var r = rootArgs(roots)
+  if (!r) return null
+  return [CLI, "remove", "--tier", t.id, "--confirm", str(env.path), "--dev", String(env.dev)].concat(r, [str(env.path)])
 }
 
 function gcMessage() {
