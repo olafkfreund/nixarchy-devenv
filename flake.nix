@@ -175,6 +175,30 @@
               if grep -nE '"#[0-9a-fA-F]{3,8}"' ${plugin}/*.qml; then
                 echo "hardcoded colour above; use a Color.* token" >&2; exit 1
               fi
+
+              # The desktop already has one text-size control: [font] base-size,
+              # which every Style.font.* and Style.space() scales from. A
+              # multiplier on top keeps this plugin a fixed percentage above
+              # every other surface at every setting, and silently overrides a
+              # theme that pins a token. A surface that wants to be bigger picks
+              # a larger token.
+              if grep -nwE 'textScale|uiScale' ${plugin}/*.qml; then
+                echo "text multiplier above; pick a larger Style.font.* token" >&2; exit 1
+              fi
+              if grep -n 'px(' ${plugin}/*.qml; then
+                echo "px() multiplier above; pick a larger Style.font.* token" >&2; exit 1
+              fi
+              if grep -nE '(pixelSize|fontSize|iconSize):' ${plugin}/*.qml \
+                 | grep -vE '(pixelSize|fontSize|iconSize): *(Style\.font\.[A-Za-z]+|root\.font[A-Z][A-Za-z]*)( |$)'; then
+                echo "font size above is neither a Style.font.* token nor a font* role" >&2; exit 1
+              fi
+              # The three greps above catch a multiplier by NAME. The defect in
+              # #12 was a `scale:` transform, and a bare one slips past all
+              # three -- verified. It magnifies after layout, so wrapping and
+              # eliding are computed at one size and stretched to another.
+              if grep -nE '^[[:space:]]*scale:' ${plugin}/*.qml; then
+                echo "scale: transform above; it magnifies after layout, so text is laid out at the wrong size" >&2; exit 1
+              fi
               touch "$out"
             '';
 
