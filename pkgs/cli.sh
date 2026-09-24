@@ -57,12 +57,19 @@ personal_json() {
       [ "$warn" = quiet ] || echo "nixarchy-devenv: skipped personal template '$id': a built-in template has that id" >&2
       continue
     fi
-    jq -c --arg id "$id" '
-      select(.version == 1)
-      | {id: $id, kind: "personal", group: "Yours",
-         label: (.label // $id | tostring), note: (.note // "" | tostring)}
-    ' "$d/template.json" 2>/dev/null ||
+    # Tested here rather than left to jq's exit status, in the same shape as
+    # the three checks above. `select(.version == 1)` inside the filter below
+    # produces no output on a non-match and still exits 0, so a valid
+    # template.json with the wrong version used to be dropped in silence while
+    # its two neighbouring mistakes explained themselves.
+    if ! jq -e '.version == 1' "$d/template.json" >/dev/null 2>&1; then
       [ "$warn" = quiet ] || echo "nixarchy-devenv: skipped personal template '$id': template.json is not version 1 JSON" >&2
+      continue
+    fi
+    jq -c --arg id "$id" '
+      {id: $id, kind: "personal", group: "Yours",
+       label: (.label // $id | tostring), note: (.note // "" | tostring)}
+    ' "$d/template.json"
   done | jq -s '.'
 }
 
