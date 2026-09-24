@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 14
 spec: spec/2026-09-24-14-polling-guard.md
 ---
