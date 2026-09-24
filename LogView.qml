@@ -37,7 +37,7 @@ FocusScope {
     if (logList.atYEnd) root.follow = true
   }
 
-  // Every append, even once the 400-line cap keeps the height constant.
+  // Every append, even once the line cap keeps the height constant.
   onLinesChanged: if (root.follow) Qt.callLater(function() { logList.positionViewAtEnd() })
   onVisibleChanged: if (visible) toEnd()
 
