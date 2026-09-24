@@ -26,10 +26,13 @@ Item {
   property bool opened: false
   property var targetScreen: null
 
-  // A full-screen surface is read from further away than a bar popup, so the
-  // whole view is drawn larger: the same factor nixarchy-pkg's menu uses.
-  // Safe here because nothing in the view pops up (no QQC Popup ignores it).
-  readonly property real uiScale: 1.45
+  // Style.space() already carries the theme's spacing scale, which in turn
+  // carries its font scale, and the compositor has already applied the
+  // monitor's own scale to these logical pixels. Multiplying again on top of
+  // both is what made the menu ignore the desktop's size: it magnified a
+  // figure that was already correct, and the card's clamp then cut off
+  // whatever no longer fitted. The shell's own full-screen menu applies no
+  // such transform either.
   readonly property int viewWidth: Style.space(680)
 
   function focusedScreen() {
@@ -113,9 +116,9 @@ Item {
 
     BorderSurface {
       id: card
-      width: Math.min(Math.round(root.viewWidth * root.uiScale) + card.contentLeftInset + card.contentRightInset,
+      width: Math.min(root.viewWidth + card.contentLeftInset + card.contentRightInset,
                       Math.round(panel.width * 0.9))
-      height: Math.min(Math.round(view.implicitHeight * root.uiScale) + card.contentTopInset + card.contentBottomInset,
+      height: Math.min(view.implicitHeight + card.contentTopInset + card.contentBottomInset,
                        Math.round(panel.height * 0.85))
       anchors.horizontalCenter: parent.horizontalCenter
       y: Math.max(Style.gapsOut, Math.round((panel.height - height) / 3))
@@ -135,17 +138,26 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         clip: true
 
-        DevenvView {
-          id: view
-          // Laid out at its natural size, then drawn uiScale times larger;
-          // input is mapped through the same transform, so clicks still land.
-          width: frame.width / root.uiScale
-          height: frame.height / root.uiScale
-          scale: root.uiScale
-          transformOrigin: Item.TopLeft
-          foreground: Color.foreground
-          fontFamily: Style.font.family
-          onCloseRequested: root.close()
+        // The card is clamped to a fraction of the screen, so on a short
+        // screen -- or with a large theme font -- the view can be taller than
+        // the space it is given. It scrolls rather than losing its footer off
+        // the bottom with no way to reach it.
+        Flickable {
+          id: flick
+          anchors.fill: parent
+          contentHeight: view.implicitHeight
+          clip: true
+          boundsBehavior: Flickable.StopAtBounds
+          interactive: contentHeight > height
+
+          DevenvView {
+            id: view
+            width: flick.width
+            height: implicitHeight
+            foreground: Color.foreground
+            fontFamily: Style.font.family
+            onCloseRequested: root.close()
+          }
         }
       }
     }
