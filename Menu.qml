@@ -146,8 +146,6 @@ Item {
           foreground: Color.foreground
           fontFamily: Style.font.family
           onCloseRequested: root.close()
-          // No neighbouring bar panel to hand over to.
-          onSwitchPanelRequested: function(direction) {}
         }
       }
     }

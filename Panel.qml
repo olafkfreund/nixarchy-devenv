@@ -16,7 +16,7 @@ Panel {
   manageIpc: false
 
   readonly property string projectRoots: String(setting("projectRoots", Model.DEFAULT_ROOTS))
-  readonly property int refreshIntervalSec: Math.max(10, Number(setting("refreshIntervalSec", 60)))
+  readonly property int refreshIntervalSec: Number(setting("refreshIntervalSec", 60))
   readonly property string terminalEditor: String(setting("terminalEditor", ""))
   readonly property bool hideWhenEmpty: setting("hideWhenEmpty", false) === true
 
@@ -27,8 +27,7 @@ Panel {
     DevenvState.settings = {
       projectRoots: root.projectRoots,
       refreshIntervalSec: root.refreshIntervalSec,
-      terminalEditor: root.terminalEditor,
-      hideWhenEmpty: root.hideWhenEmpty
+      terminalEditor: root.terminalEditor
     }
   }
 

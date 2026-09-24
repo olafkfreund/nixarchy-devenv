@@ -54,14 +54,14 @@ nixarchy. The user guide is [`docs/usage.md`](docs/usage.md). The design is in
 | `devenv-binds.lua` | The key, loaded from `~/.config/hypr/bindings.lua` with `pcall(require, "hypr.devenv-binds")`. |
 | `flake.nix` | The package (an explicit `files` list, copied as real files), the CLI, `homeManagerModules.default` (the name microvm uses), `checks`, and the `templates-check` runner. |
 | `share/omarchy-menu.jsonc` | The Omarchy menu row for users who are not on nixarchy. |
-| `tests/` | Node tests for `Model.js` (`tests/run.js`, `tests/model/`), and `tests/cli.sh`, which runs the command against stub `devenv` and `nix` (`tests/stub/`) on a PATH built from symlinked tools, so it can never reach the real ones. |
+| `tests/` | Node tests for `Model.js` (`tests/model/`, on `node:test`), and `tests/cli.sh`, which runs the command against stub `devenv` and `nix` (`tests/stub/`) on a PATH built from symlinked tools, so it can never reach the real ones. |
 | `docs/` | The GitHub Pages site (`docs/index.md`, `docs/usage.md`) and `capture.sh`. |
 | `intent/`, `spec/`, `plan/` | Design artifacts for each task. See Workflow. |
 
 ## Commands
 
 ```bash
-node tests/run.js                              # Model tests
+node --test 'tests/model/*.test.js'           # Model tests
 bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"   # CLI tests
 nix flake check                                # both, + manifest, entry points, no symlinks, no pacman/yay, no hex colours
 nix flake check --all-systems --no-build       # aarch64 evaluates

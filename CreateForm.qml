@@ -43,19 +43,7 @@ FocusScope {
   readonly property var current: fieldIndex >= 0 && fieldIndex < fields.length ? fields[fieldIndex] : null
   readonly property var check: Model.validateForm(form, templates, home)
   readonly property var chosen: Model.templateById(templates, form.template)
-  readonly property var templateChoices: {
-    var q = root.templateFilter.toLowerCase()
-    var out = []
-    var groups = Model.templateGroups(root.templates)
-    for (var g = 0; g < groups.length; g++) {
-      for (var t = 0; t < groups[g].templates.length; t++) {
-        var tpl = groups[g].templates[t]
-        if (q && (tpl.id + " " + tpl.label + " " + tpl.group).toLowerCase().indexOf(q) === -1) continue
-        out.push(tpl)
-      }
-    }
-    return out
-  }
+  readonly property var templateChoices: Model.templateChoices(root.templates, root.templateFilter)
 
   implicitHeight: formColumn.implicitHeight
 
