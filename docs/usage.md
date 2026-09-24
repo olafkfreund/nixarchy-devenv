@@ -37,6 +37,7 @@ behind **Super+Alt+E**, and does what you would otherwise type:
   the panel tells you so.
 - **nix with flakes**, only for the cloud templates.
 - **git**, for "git init" in the form.
+- **`wl-copy`**, for copying a path.
 
 ## Install on NixOS (nixarchy)
 
