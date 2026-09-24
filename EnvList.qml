@@ -31,6 +31,7 @@ Item {
   property int fontRow: Style.font.caption
   property int fontLabel: Style.font.body
   property int fontGlyph: Style.font.iconSmall
+  property int fontIcon: Style.font.icon
 
   readonly property color dim: Qt.darker(foreground, 1.5)
   readonly property int count: rowModel.count
@@ -230,6 +231,7 @@ Item {
             foreground: root.foreground
             hoverColor: modelData.danger ? Color.urgent : root.foreground
             fontFamily: root.fontFamily
+            fontSize: root.fontIcon
             fontSize: root.fontGlyph
             size: Style.space(22)
             onClicked: root.actionRequested(rowSurface.row.path, modelData.verb)
