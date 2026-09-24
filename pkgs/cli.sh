@@ -116,10 +116,15 @@ splice_preset() {
       r $file
       d
     }" devenv.nix
-  else
-    close=$(grep -n '^}' devenv.nix | tail -1 | cut -d: -f1)
-    sed -i "$((close - 1))r $file" devenv.nix
+    return 0
   fi
+  # No placeholder and no closing brace at column zero: there is nowhere the
+  # preset could land inside the top-level attrset. Appending at the end of
+  # the file would put the option lines outside it and produce a devenv.nix
+  # that may not evaluate, so refuse and let the caller say so.
+  close=$(grep -n '^}' devenv.nix | tail -1 | cut -d: -f1) || true
+  [ -n "$close" ] || return 1
+  sed -i "$((close - 1))r $file" devenv.nix
 }
 
 cmd_init() {
@@ -169,7 +174,15 @@ cmd_init() {
     preset)
       need devenv
       devenv init || die 4 "devenv init failed."
-      splice_preset "$share/presets/$tpl.nix"
+      if ! splice_preset "$share/presets/$tpl.nix"; then
+        {
+          echo "nixarchy-devenv: devenv init wrote a devenv.nix nixarchy-devenv does not recognise (no closing '}' at column zero)."
+          echo "Add the '$tpl' lines by hand:"
+          echo
+          sed 's/^/  /' "$share/presets/$tpl.nix"
+        } >&2
+        exit 4
+      fi
       # Appended, never merged by rewriting: devenv's scaffold stays as it
       # wrote it. A second top-level key would be a YAML error, so an init
       # that already wrote one is a refusal with the keys to add by hand.
