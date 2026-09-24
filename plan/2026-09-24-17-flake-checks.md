@@ -6,18 +6,32 @@ spec: spec/2026-09-24-17-flake-checks.md
 
 # Plan: the flake checks enforce the rules they claim to enforce
 
+**Rebased onto main at `e254c82`** (merge of PR #26, `fix/8-remove-dead-code`).
+That branch already consolidated the two `pacman|yay` greps the spec found
+(the old separate `plugin`-check grep over `${plugin}/*.qml ${plugin}/*.js`
+is gone; `flake.nix`'s `repo` check now runs the single grep over
+`${self}/*.qml ${self}/*.js ${self}/pkgs ${self}/data`, `flake.nix:167-169`),
+which is exactly the follow-up the spec flagged for "whichever branch lands
+second" — so step 1 below now widens that one already-consolidated grep
+instead of two. It also renamed the test entry point: `tests/run.js` is
+deleted, and the `model` check invokes `node --test 'tests/model/*.test.js'`
+(`flake.nix:122`) — unaffected by this plan, noted here only because the
+Tests section below must not reference the old command.
+
 ## Summary of approved decisions (carried from the spec)
 
-- **#17**: the `repo` check's `pacman|yay` grep (`flake.nix:170-172`) scans only
-  `${self}/pkgs ${self}/data` today. Widen it to the whole `${self}` tree, with a
-  narrow, commented, name-based exclusion for exactly the files whose job is to
-  *talk about* the rule: `AGENTS.md` (states the rule), `flake.nix` itself
-  (carries the grep pattern text and doc comments), and the closed `intent/`,
-  `spec/`, `plan/` directories (design history that quotes the rule while
-  proposing to change it — this spec is itself in `spec/` and does exactly
-  that). Do not reword AGENTS.md's rule text to dodge the grep. Do not exclude
-  whole content directories (`docs/`, `tests/`, etc.) — only the four
-  self-referential locations, confirmed today to be the only matches.
+- **#17**: the `repo` check's `pacman|yay` grep (now `flake.nix:167-169`,
+  after #8's consolidation — see rebase note above) scans
+  `${self}/*.qml ${self}/*.js ${self}/pkgs ${self}/data` today. Widen it to
+  the whole `${self}` tree, with a narrow, commented, name-based exclusion
+  for exactly the files whose job is to *talk about* the rule: `AGENTS.md`
+  (states the rule), `flake.nix` itself (carries the grep pattern text and
+  doc comments), and the closed `intent/`, `spec/`, `plan/` directories
+  (design history that quotes the rule while proposing to change it — this
+  spec is itself in `spec/` and does exactly that). Do not reword AGENTS.md's
+  rule text to dodge the grep. Do not exclude whole content directories
+  (`docs/`, `tests/`, etc.) — only the four self-referential locations,
+  confirmed today to be the only matches.
 - **#18**: a *reference* check, not a QML parser (no `.qmltypes` exist for
   Quickshell in nixpkgs, and a parser wouldn't catch a missing file anyway —
   the actual defect shape). New `checks.<system>.files`: for every packaged
@@ -43,23 +57,29 @@ spec: spec/2026-09-24-17-flake-checks.md
   `fix/8-remove-dead-code` branch that already consolidates it; note as a
   follow-up for whichever branch lands second.
 
-Verified live against the current tree (baseline, before any edit):
-`nix flake check --all-systems --no-build` passes with 8 checks (cli, plugin,
-model, repo × 2 systems) and the pre-existing `unknown flake output
+Verified live against the current tree at `e254c82` (baseline, before any
+edit): `nix flake check --all-systems --no-build` passes with 8 checks (cli,
+plugin, model, repo × 2 systems) and the pre-existing `unknown flake output
 'homeManagerModules'` warning. The widened #17 grep, run standalone against
-the working tree, returns nothing (exit 1, no output) — the only four matches
-in the whole repo today are `flake.nix`, `AGENTS.md`,
-`intent/2026-09-19-1-devenv-plugin.md`, `plan/2026-09-19-1-devenv-plugin.md`,
-all excluded by name/directory.
+the working tree, returns nothing (exit 1, no output) — the intent/spec/plan
+directories now also hold `2026-09-21-3-*`, `2026-09-21-4-*` and
+`2026-09-22-8-*` artifacts alongside the original `2026-09-19-1-*` ones, but
+the only matches for `pacman|yay` anywhere in the repo today remain
+`flake.nix`, `AGENTS.md`, `intent/2026-09-19-1-devenv-plugin.md` and
+`plan/2026-09-19-1-devenv-plugin.md` — all four still covered by the
+exclusion, which excludes by directory (`intent/`, `spec/`, `plan/` in full),
+not by filename, so it does not need updating as new dated artifacts are
+added.
 
 ## Steps
 
 1. `flake.nix`: replace the `repo` check's grep
-   (currently `flake.nix:170-172`) —
+   (currently `flake.nix:167-169`, already the single grep #8 consolidated
+   from the old plugin-check + repo-check pair) —
 
    ```nix
    # was:
-           if grep -rnwE 'pacman|yay' ${self}/pkgs ${self}/data; then
+           if grep -rnwE 'pacman|yay' ${self}/*.qml ${self}/*.js ${self}/pkgs ${self}/data; then
              echo "Arch package manager reference above" >&2; exit 1
            fi
    # becomes:
@@ -78,7 +98,7 @@ all excluded by name/directory.
 
    → verify by: `grep -rnwE 'pacman|yay' . --exclude-dir=.git --exclude-dir=result --exclude=flake.nix --exclude=AGENTS.md --exclude-dir=intent --exclude-dir=spec --exclude-dir=plan` from the repo root returns nothing (exit 1), then `nix flake check --all-systems --no-build` passes.
 
-2. `flake.nix`: add `checks.<system>.files`, after the `plugin` check (currently ends `flake.nix:156`, before the `repo` check) —
+2. `flake.nix`: add `checks.<system>.files`, after the `plugin` check (currently ends `flake.nix:153`, before the `repo` check at `flake.nix:157`) —
 
    ```nix
    # Every local component a packaged .qml references (Quickshell resolves
@@ -119,7 +139,7 @@ all excluded by name/directory.
    → verify by: `nix flake check --all-systems --no-build` passes, and
    `checks.<system>.files` appears in the output for both systems.
 
-3. `flake.nix`: add `checks.<system>.homeManagerModule`, after the `model` check (currently ends `flake.nix:124`, before the `plugin` check) —
+3. `flake.nix`: add `checks.<system>.homeManagerModule`, after the `model` check (currently ends `flake.nix:124`, before the `plugin` check at `flake.nix:128`) —
 
    ```nix
    # Forces homeManagerModules.default to actually be evaluated by
