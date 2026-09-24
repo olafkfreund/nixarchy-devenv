@@ -123,6 +123,32 @@
               touch "$out"
             '';
 
+          # Forces homeManagerModules.default to be evaluated. nix's flake
+          # schema does not recognise that output name -- hence the "unknown
+          # flake output" warning -- so `nix flake check` never touched it on
+          # any system, and it is the name nixarchy consumes. The stub declares
+          # only what the module writes to.
+          homeManagerModule =
+            let
+              stub = { lib, ... }: {
+                options.home.file = lib.mkOption {
+                  type = with lib.types; attrsOf (submodule { options.text = lib.mkOption { type = str; }; });
+                  default = { };
+                };
+              };
+              evaluated = nixpkgs.lib.evalModules {
+                modules = [ stub self.homeManagerModules.default ];
+              };
+              fileText = evaluated.config.home.file.".config/hypr/devenv-binds.lua".text;
+            in
+            assert nixpkgs.lib.assertMsg
+              (evaluated.config.programs.nixarchy-devenv.keybinding == "SUPER + ALT + E")
+              "homeManagerModules.default's default keybinding changed; update this check, devenv-binds.lua's placeholder and AGENTS.md together if that is intended";
+            assert nixpkgs.lib.assertMsg
+              (nixpkgs.lib.hasInfix "SUPER + ALT + E" fileText)
+              "homeManagerModules.default stopped substituting the keybinding into devenv-binds.lua";
+            pkgs.runCommand "nixarchy-devenv-hm-module-check" { } "touch $out";
+
           # The manifest is what the shell validates at load: a typo in it is a
           # plugin that silently never appears.
           plugin = let plugin = self.packages.${system}.plugin; in
