@@ -12,6 +12,19 @@ FocusScope {
 
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
+
+  // A full-screen surface is read from further away than a bar popup, so the
+  // menu is bigger -- by picking larger tokens, never by a factor. Every rung
+  // derives from the theme's [font] base-size, so both surfaces move together
+  // when the desktop's text size changes, and a theme that pins a token is
+  // honoured. A multiplier would do neither, and nix flake check forbids one.
+  property bool large: false
+
+  readonly property int fontRow:   large ? Style.font.title        : Style.font.caption
+  readonly property int fontLabel: large ? Style.font.heading      : Style.font.body
+  readonly property int fontGlyph: large ? Style.font.title        : Style.font.iconSmall
+  readonly property int fontIcon:  large ? Style.font.heading      : Style.font.icon
+  readonly property int fontHero:  large ? Style.font.displayLarge : Style.font.display
   readonly property color dim: Qt.darker(foreground, 1.5)
 
   // KeyboardPanel focuses this directly: handing it the FocusScope instead
@@ -350,7 +363,7 @@ FocusScope {
             text: Model.Glyph.env
             color: root.foreground
             font.family: root.fontFamily
-            font.pixelSize: Style.font.display
+            font.pixelSize: root.fontHero
           }
 
           trailingControl: Row {
@@ -485,7 +498,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fontLabel
             wrapMode: Text.WordWrap
           }
 
@@ -497,7 +510,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
             wrapMode: Text.WordWrap
             lineHeight: 1.3
           }
@@ -531,7 +544,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: Color.urgent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.iconSmall
+            font.pixelSize: root.fontGlyph
           }
 
           Text {
@@ -545,7 +558,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: Color.urgent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
             wrapMode: Text.WordWrap
           }
 
@@ -558,7 +571,7 @@ FocusScope {
             tooltipText: "Dismiss"
             foreground: root.foreground
             fontFamily: root.fontFamily
-            fontSize: Style.font.iconSmall
+            fontSize: root.fontGlyph
             size: Style.space(20)
             onClicked: DevenvState.lastError = ""
           }
@@ -571,7 +584,7 @@ FocusScope {
           textFormat: Text.PlainText
           color: Color.urgent
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: root.fontRow
           wrapMode: Text.WordWrap
         }
 
@@ -589,7 +602,7 @@ FocusScope {
           textFormat: Text.PlainText
           color: DevenvState.streaming ? Color.accent : root.dim
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: root.fontRow
           elide: Text.ElideRight
         }
 
@@ -605,7 +618,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
           }
 
           Text {
@@ -615,7 +628,7 @@ FocusScope {
             color: root.foreground
             opacity: 0.65
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
           }
         }
       }
@@ -665,7 +678,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: root.foreground
             font.family: root.fontFamily
-            font.pixelSize: Style.font.body
+            font.pixelSize: root.fontLabel
             font.bold: true
           }
 
@@ -675,7 +688,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: root.dim
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
             elide: Text.ElideMiddle
           }
 
@@ -711,7 +724,7 @@ FocusScope {
                   textFormat: Text.PlainText
                   color: index > 0 && index === root.removeTier ? Color.urgent : root.foreground
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
+                  font.pixelSize: root.fontRow
                   font.bold: index === root.removeTier
                 }
 
@@ -721,7 +734,7 @@ FocusScope {
                   textFormat: Text.PlainText
                   color: root.dim
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
+                  font.pixelSize: root.fontRow
                   wrapMode: Text.WordWrap
                 }
               }
@@ -749,7 +762,7 @@ FocusScope {
             textFormat: Text.PlainText
             color: Color.urgent
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
             wrapMode: Text.WordWrap
           }
 
@@ -762,7 +775,7 @@ FocusScope {
             color: root.foreground
             opacity: 0.65
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: root.fontRow
           }
         }
       }

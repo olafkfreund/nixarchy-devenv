@@ -76,8 +76,10 @@ is untouched.
 | 752 | `caption` | `root.fontRow` |
 | 765 | `caption` | `root.fontRow` |
 
-→ verify by `grep -c 'Style\.font\.' DevenvView.qml` returning **1** (the
-family line), and `nix build && omarchy plugin validate "$(readlink -f result)"`.
+→ verify by `grep -c 'Style\.font\.' DevenvView.qml` returning **6** — the
+family line plus the five ladder declarations, which are themselves the only
+places a token is named. (The plan first said 1; it overlooked that the
+ladder reads tokens too.) And `nix build && omarchy plugin validate "$(readlink -f result)"`.
 
 ### 2. The four children: declare and consume
 
