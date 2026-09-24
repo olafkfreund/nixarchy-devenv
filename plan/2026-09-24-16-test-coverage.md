@@ -102,6 +102,22 @@ before continuing, don't just edit the number and move on.
    is untouched, still `pass 70`.
    Commit: `test(cli): the four missing removal refusals (#16, step 1)`.
 
+**Deviation, recorded while implementing step 1.** This plan was written against
+`main` before the removal work (#9, #10, #11) merged, so step 1 above cites a
+contract that no longer exists. Adapted, with the substance unchanged:
+
+- `--dev N` is now `--ident DEV:INO`, and the helper is `ident_of`, not `dev_of`.
+- `remove` now requires at least one `--root`, so every call gains
+  `--root "$R/root"`. Without it the command exits 1 on the usage check and
+  never reaches the refusal under test — the tests would pass for the wrong
+  reason.
+- The baseline is **73**, not 63, so Group A lands at **77 passed**.
+
+The four refusals, their messages and their order in `verify_target` are
+unchanged, so what the tests assert is exactly what the plan specified. Each
+test greps for its own refusal message rather than only the exit code, so an
+earlier check firing instead cannot produce a false pass.
+
 2. **`tests/stub/devenv` — add the failure hooks, no behaviour change yet.**
    Current file already has `STUB_INIT_NIXPKGS` and `STUB_INIT_NOPLACEHOLDER`
    checks inside the `init)` arm and a combined `allow | revoke | version) ;;`

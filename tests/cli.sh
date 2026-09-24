@@ -341,6 +341,30 @@ expect 2 "remove: the directory was replaced since it was listed" -- \
   rm_cli --tier folder --confirm "$swapA" --ident "$swapI" --root "$R/root" "$swapA"
 untouched "$swapA" "replaced directory"
 
+# AGENTS.md: every refusal has a filesystem test. These four had none. All
+# behave correctly; the tests are what stops a refactor changing them quietly.
+s=$(mktemp -d "$R/root/s.XXXX")
+ln -s /nonexistent-target "$s/devenv.nix"
+expect 2 "remove: devenv.nix is a symlink" -- \
+  rm_cli --tier files --confirm "$s" --ident "$(ident_of "$s")" --root "$R/root" "$s"
+grep -q "has no devenv.nix of its own" "$root/err" || bad "remove: devenv.nix symlink names the refusal"
+[ -L "$s/devenv.nix" ] || bad "remove: devenv.nix symlink: the link itself untouched"
+
+expect 2 "remove: the target contains HOME" -- \
+  rm_cli --tier files --confirm "$root" --ident "$(ident_of "$root")" --root "$R/root" "$root"
+grep -q "contains your home directory" "$root/err" || bad "remove: a target containing HOME names the refusal"
+
+missing="$R/root/does-not-exist-$$"
+expect 2 "remove: the target does not exist" -- \
+  rm_cli --tier files --confirm "$missing" --ident 0:0 --root "$R/root" "$missing"
+grep -q "does not exist" "$root/err" || bad "remove: a missing target names the refusal"
+
+# Safe: [ "$dir" != / ] is checked before the roots, the devenv.nix test, the
+# status call and the revoke, so nothing runs against / beyond two stats.
+expect 2 "remove: the target is /" -- \
+  rm_cli --tier folder --confirm / --ident "$(ident_of /)" --root "$R/root" /
+grep -q "refused: /\." "$root/err" || bad "remove: / names the refusal"
+
 mkdir -p "$R/root/plain"
 expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --ident "$d" --root "$R/root" "$R/root/plain"
 # A bound directory (`devenv --from`) has no devenv.nix of its own: every
