@@ -5,6 +5,7 @@
 echo "$PWD :: nix $*" >>"$STUB_LOG"
 case " $* " in
   *" run "*)
+    if [ "${STUB_RUN_FAIL:-}" = 1 ]; then echo "stub nix: the generator failed" >&2; exit 1; fi
     printf '{ }\n' >devenv.nix
     printf 'inputs: {}\n' >devenv.yaml
     git init -q

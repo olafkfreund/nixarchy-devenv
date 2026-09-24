@@ -80,6 +80,34 @@ jq -e --argjson n "$((builtin + 1))" 'length == $n and (map(select(.id=="mine"))
 grep -q "Bad" "$root/err" && grep -q "python" "$root/err" && grep -q "broken" "$root/err" ||
   bad "personal: each skip is warned about"
 
+# Valid JSON, wrong version. jq's select() on a non-match exits 0 with no
+# output, so the "not version 1" warning in personal_json can never fire --
+# the entry is dropped in silence. This pins the behaviour as it is; the dead
+# warning is recorded as a Risk in the spec, not fixed here.
+mkdir -p "$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver"
+echo '{ }' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver/devenv.nix"
+echo '{"version":2,"label":"Two"}' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver/template.json"
+expect 0 "templates: a personal template that is not version 1" -- "$cli" templates --json
+jq -e 'map(select(.id=="wrongver")) == []' "$root/out" >/dev/null ||
+  bad "personal: a wrong version is dropped"
+rm -rf "$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver"
+
+# ---- dispatch -----------------------------------------------------------------
+
+# The usage surface: bare invocation defaults to help, and an unknown command
+# or option is a usage error rather than a silent no-op.
+expect 0 "dispatch: no arguments is help" -- "$cli"
+grep -q 'nixarchy-devenv' "$root/out" || bad "dispatch: bare invocation prints usage"
+expect 0 "dispatch: help" -- "$cli" help
+expect 0 "dispatch: -h" -- "$cli" -h
+expect 0 "dispatch: --help" -- "$cli" --help
+expect 1 "dispatch: an unknown command" -- "$cli" frobnicate
+grep -q "unknown command" "$root/err" || bad "dispatch: an unknown command names itself"
+expect 1 "dispatch: init, unknown option" -- "$cli" init --frobnicate python
+expect 1 "dispatch: new, unknown option" -- "$cli" new --frobnicate --parent "$root" --name p python
+expect 1 "dispatch: list, unknown argument" -- "$cli" list --json --frobnicate
+expect 1 "dispatch: remove, unknown option" -- "$cli" remove --tier files --frobnicate /x
+
 # ---- init ---------------------------------------------------------------------
 
 d=$(fresh)
@@ -148,6 +176,33 @@ d=$(fresh)
 expect 0 "init personal" -- bash -c "cd '$d' && '$cli' init --no-git mine"
 [ -f "$d/devenv.nix" ] && [ -f "$d/devenv.yaml" ] || bad "personal: files copied"
 [ -w "$d/devenv.nix" ] || bad "personal: copies are writable"
+
+# A personal template whose devenv.yaml would land on one devenv init already
+# wrote: the existing file is kept, never overwritten.
+d=$(fresh)
+printf 'inputs:\n  mine: kept\n' >"$d/devenv.yaml"
+expect 0 "init personal keeps an existing devenv.yaml" -- bash -c "cd '$d' && '$cli' init --no-git mine"
+grep -q 'kept' "$d/devenv.yaml" || bad "personal: an existing devenv.yaml is kept, not overwritten"
+
+# The failure paths the stubs could not reach before.
+d=$(fresh)
+expect 4 "init: devenv init fails" -- \
+  with_devenv env STUB_INIT_FAIL=1 bash -c "cd '$d' && '$cli' init --no-git python"
+grep -q 'devenv init failed' "$root/err" || bad "init: a devenv init failure names itself"
+
+d=$(fresh)
+expect 4 "init: the generator fails" -- \
+  with_devenv env STUB_RUN_FAIL=1 bash -c "cd '$d' && '$cli' init cloud aws"
+grep -q "generator failed" "$root/err" || bad "generator: a failed run names itself"
+
+# A generator needs nix as well as devenv. With only devenv reachable it is a
+# missing-requirement refusal (3), not a crash.
+devonly="$root/devenv-only"
+mkdir -p "$devonly" && ln -sf "$here/stub/devenv" "$devonly/devenv"
+d=$(fresh)
+expect 3 "init: a generator without nix" -- \
+  env PATH="$devonly:$base_path" bash -c "cd '$d' && '$cli' init cloud aws"
+grep -qi 'nix' "$root/err" || bad "generator without nix: the refusal names nix"
 
 # ---- new ----------------------------------------------------------------------
 
@@ -286,11 +341,21 @@ expect 4 "new: a scaffold the splice cannot land in" -- \
 
 R=$(fresh)
 mkdir -p "$R/root"
+# $2 is how .devenv is made: a real directory (the default) or a symlink to
+# one outside the project, which removal must unlink rather than follow.
 mkproj() {
-  local d="$R/root/$1"
-  mkdir -p "$d/src" "$d/.devenv/state/db" "$d/.devenv/profile"
+  local d="$R/root/$1" kind=${2:-dir}
+  mkdir -p "$d/src"
+  if [ "$kind" = symlink ]; then
+    mkdir -p "$R/elsewhere/$1/state/db"
+    echo data >"$R/elsewhere/$1/state/db/x"
+    ln -s "$R/elsewhere/$1" "$d/.devenv"
+  else
+    mkdir -p "$d/.devenv/state/db" "$d/.devenv/profile"
+  fi
   echo '{ }' >"$d/devenv.nix"; echo 'inputs: {}' >"$d/devenv.yaml"; echo '{}' >"$d/devenv.lock"
-  echo python >"$d/.devenv-template"; echo code >"$d/src/main.py"; echo data >"$d/.devenv/state/db/x"
+  echo python >"$d/.devenv-template"; echo code >"$d/src/main.py"
+  [ "$kind" = symlink ] || echo data >"$d/.devenv/state/db/x"
   echo 'use devenv' >"$d/.envrc"
   echo "$d"
 }
@@ -340,6 +405,30 @@ mv "$swapA" "$swapA.gone" && mv "$swapB" "$swapA"
 expect 2 "remove: the directory was replaced since it was listed" -- \
   rm_cli --tier folder --confirm "$swapA" --ident "$swapI" --root "$R/root" "$swapA"
 untouched "$swapA" "replaced directory"
+
+# AGENTS.md: every refusal has a filesystem test. These four had none. All
+# behave correctly; the tests are what stops a refactor changing them quietly.
+s=$(mktemp -d "$R/root/s.XXXX")
+ln -s /nonexistent-target "$s/devenv.nix"
+expect 2 "remove: devenv.nix is a symlink" -- \
+  rm_cli --tier files --confirm "$s" --ident "$(ident_of "$s")" --root "$R/root" "$s"
+grep -q "has no devenv.nix of its own" "$root/err" || bad "remove: devenv.nix symlink names the refusal"
+[ -L "$s/devenv.nix" ] || bad "remove: devenv.nix symlink: the link itself untouched"
+
+expect 2 "remove: the target contains HOME" -- \
+  rm_cli --tier files --confirm "$root" --ident "$(ident_of "$root")" --root "$R/root" "$root"
+grep -q "contains your home directory" "$root/err" || bad "remove: a target containing HOME names the refusal"
+
+missing="$R/root/does-not-exist-$$"
+expect 2 "remove: the target does not exist" -- \
+  rm_cli --tier files --confirm "$missing" --ident 0:0 --root "$R/root" "$missing"
+grep -q "does not exist" "$root/err" || bad "remove: a missing target names the refusal"
+
+# Safe: [ "$dir" != / ] is checked before the roots, the devenv.nix test, the
+# status call and the revoke, so nothing runs against / beyond two stats.
+expect 2 "remove: the target is /" -- \
+  rm_cli --tier folder --confirm / --ident "$(ident_of /)" --root "$R/root" /
+grep -q "refused: /\." "$root/err" || bad "remove: / names the refusal"
 
 mkdir -p "$R/root/plain"
 expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --ident "$d" --root "$R/root" "$R/root/plain"
@@ -398,6 +487,27 @@ expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --ident "$d" --ro
 [ ! -e "$p/.devenv/profile" ] || bad "files: the rest of .devenv gone"
 [ -f "$p/src/main.py" ] && [ -f "$p/.envrc" ] || bad "files: code and .envrc kept"
 grep -q "$p :: revoke" "$STUB_LOG" || bad "files: revoked"
+
+# .devenv as a symlink to a directory outside the project: the link goes, the
+# tree it points at is not followed and not deleted.
+sl=$(mkproj slink symlink)
+expect 0 "remove: .devenv is a symlink" -- \
+  rm_cli --tier files --confirm "$sl" --ident "$(ident_of "$sl")" --root "$R/root" "$sl"
+[ ! -e "$sl/.devenv" ] || bad "remove: a .devenv symlink is unlinked"
+[ -f "$R/elsewhere/slink/state/db/x" ] || bad "remove: a .devenv symlink is not followed"
+[ -f "$sl/src/main.py" ] || bad "remove: a .devenv symlink: the code is kept"
+
+# devenv revoke failing mid-remove is reported and does not stop the removal:
+# the files still go, because revoke failing leaves the directory allowed, not
+# undeletable.
+rf=$(mkproj revokefail)
+: >"$STUB_LOG"
+expect 0 "remove: devenv revoke fails" -- \
+  with_devenv env STUB_REVOKE_FAIL=1 "$cli" remove --tier files --confirm "$rf" \
+    --ident "$(ident_of "$rf")" --root "$R/root" "$rf"
+grep -q 'revoke failed; continuing' "$root/err" || bad "remove: a failed revoke is reported"
+grep -q "$rf :: revoke" "$STUB_LOG" || bad "remove: a failed revoke was still attempted"
+[ ! -e "$rf/devenv.nix" ] || bad "remove: a failed revoke does not stop the removal"
 
 p=$(mkproj b)
 expect 0 "remove: state" -- rm_cli --tier state --confirm "$p" --ident "$(ident_of "$p")" --root "$R/root" "$p"
