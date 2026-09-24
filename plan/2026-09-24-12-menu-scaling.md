@@ -32,16 +32,23 @@ Self-contained summary of the approved decisions carried from the spec:
   nixarchy.microvm and nixarchy.podman as separate follow-up issues, not in
   this PR.
 
+Re-verified against `main` at `e254c82` (post-#8, which removed
+`onSwitchPanelRequested` wiring from `Menu.qml` as dead code — `Menu.qml`
+never had a neighbouring panel to hand off to; `DevenvView.qml`'s
+`switchPanelRequested` signal itself is untouched and still used by
+`Panel.qml`). `uiScale` and the `* uiScale` card/view arithmetic this plan
+removes are all still present, unchanged, at the line numbers below.
+
 ## Steps
 
-1. `Menu.qml`: delete `readonly property real uiScale: 1.45` and its
-   preceding comment (lines 29-32, "A full-screen surface is read from
+1. `Menu.qml`: delete `readonly property real uiScale: 1.45` (line 32) and
+   its preceding comment (lines 29-31, "A full-screen surface is read from
    further away… Safe here because nothing in the view pops up…") →
    verify by `grep -n uiScale Menu.qml` returning nothing.
 
-2. `Menu.qml`: change `card.width`/`card.height` (currently lines 116-119)
-   to drop the `* root.uiScale` factor, matching the shell's
-   `cardWidth`/`cardHeight` clamp-to-screen-fraction shape:
+2. `Menu.qml`: change `card.width`/`card.height` (lines 116-119) to drop
+   the `* root.uiScale` factor, matching the shell's `cardWidth`/
+   `cardHeight` clamp-to-screen-fraction shape:
    ```qml
    width: Math.min(root.viewWidth + card.contentLeftInset + card.contentRightInset,
                    Math.round(panel.width * 0.9))
@@ -54,7 +61,9 @@ Self-contained summary of the approved decisions carried from the spec:
 
 3. `Menu.qml`: wrap `DevenvView` in a `Flickable` inside `frame`, and drop
    the scale transform and the `/ root.uiScale` division on `width`/
-   `height`. Replace the current block (lines 129-152) with:
+   `height`. Replace the current block (lines 129-150, `frame` through its
+   closing braces — note `DevenvView` here has no `onSwitchPanelRequested`
+   handler post-#8, so none is reintroduced) with:
    ```qml
    Item {
      id: frame
@@ -79,8 +88,6 @@ Self-contained summary of the approved decisions carried from the spec:
          foreground: Color.foreground
          fontFamily: Style.font.family
          onCloseRequested: root.close()
-         // No neighbouring bar panel to hand over to.
-         onSwitchPanelRequested: function(direction) {}
        }
      }
    }
@@ -137,11 +144,12 @@ Self-contained summary of the approved decisions carried from the spec:
 ## Tests
 
 Automated suites that must still pass (none of them can prove the visual
-fix — they only prove nothing else regressed):
+fix — they only prove nothing else regressed). `tests/run.js` no longer
+exists (removed by #8); the model suite runs on `node:test` directly:
 
 ```bash
-node tests/run.js
-bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"
+node --test 'tests/model/*.test.js'            # expect 70 passing
+bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"   # expect 63 passed
 nix flake check
 ```
 
