@@ -123,6 +123,32 @@
               touch "$out"
             '';
 
+          # Forces homeManagerModules.default to be evaluated. nix's flake
+          # schema does not recognise that output name -- hence the "unknown
+          # flake output" warning -- so `nix flake check` never touched it on
+          # any system, and it is the name nixarchy consumes. The stub declares
+          # only what the module writes to.
+          homeManagerModule =
+            let
+              stub = { lib, ... }: {
+                options.home.file = lib.mkOption {
+                  type = with lib.types; attrsOf (submodule { options.text = lib.mkOption { type = str; }; });
+                  default = { };
+                };
+              };
+              evaluated = nixpkgs.lib.evalModules {
+                modules = [ stub self.homeManagerModules.default ];
+              };
+              fileText = evaluated.config.home.file.".config/hypr/devenv-binds.lua".text;
+            in
+            assert nixpkgs.lib.assertMsg
+              (evaluated.config.programs.nixarchy-devenv.keybinding == "SUPER + ALT + E")
+              "homeManagerModules.default's default keybinding changed; update this check, devenv-binds.lua's placeholder and AGENTS.md together if that is intended";
+            assert nixpkgs.lib.assertMsg
+              (nixpkgs.lib.hasInfix "SUPER + ALT + E" fileText)
+              "homeManagerModules.default stopped substituting the keybinding into devenv-binds.lua";
+            pkgs.runCommand "nixarchy-devenv-hm-module-check" { } "touch $out";
+
           # The manifest is what the shell validates at load: a typo in it is a
           # plugin that silently never appears.
           plugin = let plugin = self.packages.${system}.plugin; in
@@ -152,6 +178,37 @@
               touch "$out"
             '';
 
+          # Every local component a packaged .qml references (Quickshell
+          # resolves siblings by bare filename, with no import line) or imports
+          # by path must itself be in the package. Candidate names come from
+          # the whole repository, not just what is packaged: that is what
+          # catches a new file that was referenced but never added to the
+          # `files` list above, which otherwise passes every check here and
+          # fails only when the shell loads the plugin.
+          files = let plugin = self.packages.${system}.plugin; in
+            pkgs.runCommand "nixarchy-devenv-files-check" { } ''
+              fail=0
+              for f in ${plugin}/*.qml; do
+                base=$(basename "$f" .qml)
+                for other in ${self}/*.qml; do
+                  obase=$(basename "$other" .qml)
+                  [ "$obase" = "$base" ] && continue
+                  if grep -qw "$obase" "$f" && [ ! -f "${plugin}/$obase.qml" ]; then
+                    echo "$base.qml references $obase, but $obase.qml is not in flake.nix's files list" >&2
+                    fail=1
+                  fi
+                done
+                for imp in $(grep -ohE 'import "[^"]+"' "$f" | sed -E 's/import "(.*)"/\1/'); do
+                  [ -f "${plugin}/$imp" ] || {
+                    echo "$base.qml imports \"$imp\", which is not in flake.nix's files list" >&2
+                    fail=1
+                  }
+                done
+              done
+              [ "$fail" -eq 0 ] || exit 1
+              touch "$out"
+            '';
+
           # omarchy-plugin-validate refuses a symlink anywhere in a plugin, and
           # `omarchy plugin add` clones this repository AS the plugin folder.
           repo = pkgs.runCommand "nixarchy-devenv-repo-check" { } ''
@@ -164,7 +221,15 @@
               du -sh ${self}/docs/img >&2
               echo "docs/img is over 8 MB" >&2; exit 1
             fi
-            if grep -rnwE 'pacman|yay' ${self}/*.qml ${self}/*.js ${self}/pkgs ${self}/data; then
+            # Excludes only the files whose job is to talk *about* the rule:
+            # flake.nix carries this pattern's own text, AGENTS.md states the
+            # rule, and intent/spec/plan hold design history that quotes it
+            # while proposing to change it. Nothing else may mention either
+            # word, not even in a comment.
+            if grep -rnwE 'pacman|yay' ${self} \
+                --exclude-dir=.git --exclude-dir=result \
+                --exclude=flake.nix --exclude=AGENTS.md \
+                --exclude-dir=intent --exclude-dir=spec --exclude-dir=plan; then
               echo "Arch package manager reference above" >&2; exit 1
             fi
             touch "$out"
