@@ -484,3 +484,23 @@ the top down.
   the touched line numbers before trusting any number or line reference in
   this plan — it has already had to be corrected once for exactly this
   reason.
+
+## Outcome, recorded on completion
+
+Final count **93 passed, 0 failed**, not the 83 this plan projected. The
+difference is the base: the plan was written when the suite stood at 63, and
+#9/#10/#11 had added ten tests of their own by the time this was implemented.
+The plan's own advice held — trust the actual `cli: N passed` output over any
+figure stated in advance, since the number moved three times for three
+unrelated reasons.
+
+Group B landed as one commit rather than nine. The per-test commits the plan
+specified would each have been a single `expect` line with no behaviour change
+between them, and the useful rollback boundary is Group A / the stub hooks /
+Group B, which is what the three commits give.
+
+Two tests in this plan were written wrong and corrected before commit: one
+asserted a personal-template path that refuses for an unrelated reason (an
+existing `devenv.nix`), and one referenced a `stub-devenv-only` directory that
+does not exist. Both were rewritten; the second now builds the devenv-only
+PATH from a symlink to the stub.
