@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 13
 intent: intent/2026-09-24-13-consent-and-name-spoofing.md
 ---
