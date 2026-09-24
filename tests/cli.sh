@@ -280,20 +280,35 @@ untouched() { [ -f "$1/devenv.nix" ] && [ -f "$1/src/main.py" ] && [ -f "$1/.dev
 
 p=$(mkproj a)
 d=$(ident_of "$p")
-expect 1 "remove: bad tier" -- rm_cli --tier all --confirm "$p" --ident "$d" "$p"
+expect 1 "remove: bad tier" -- rm_cli --tier all --confirm "$p" --ident "$d" --root "$R/root" "$p"
 expect 1 "remove: no --ident" -- rm_cli --tier files --confirm "$p" "$p"
-expect 2 "remove: confirm mismatch" -- rm_cli --tier files --confirm "$p/" --ident "$d" "$p"; untouched "$p" "confirm mismatch"
+expect 2 "remove: confirm mismatch" -- rm_cli --tier files --confirm "$p/" --ident "$d" --root "$R/root" "$p"; untouched "$p" "confirm mismatch"
 ln -s "$p" "$R/alias"
-expect 2 "remove: symlinked dir" -- rm_cli --tier folder --confirm "$R/alias" --ident "$d" "$R/alias"; untouched "$p" "symlink"
-expect 2 "remove: HOME" -- rm_cli --tier folder --confirm "$HOME" --ident "$(ident_of "$HOME")" "$HOME"
+expect 2 "remove: symlinked dir" -- rm_cli --tier folder --confirm "$R/alias" --ident "$d" --root "$R/root" "$R/alias"; untouched "$p" "symlink"
+expect 2 "remove: HOME" -- rm_cli --tier folder --confirm "$HOME" --ident "$(ident_of "$HOME")" --root "$R/root" "$HOME"
 expect 2 "remove: a root" -- rm_cli --tier folder --confirm "$R/root" --ident "$(ident_of "$R/root")" --root "$R/root" "$R/root"
 echo '{ }' >"$R/devenv.nix"
 expect 2 "remove: a root's parent" -- rm_cli --tier folder --confirm "$R" --ident "$(ident_of "$R")" --root "$R/root" "$R"
 [ -d "$R/root" ] || bad "remove: a root's parent: nothing may be deleted"
 ln -s "$R/root" "$R/rootlink"
 expect 2 "remove: a root given as a symlink" -- rm_cli --tier folder --confirm "$R" --ident "$(ident_of "$R")" --root "$R/rootlink" "$R"
-expect 1 "remove: malformed --ident" -- rm_cli --tier files --confirm "$p" --ident 999999 "$p"; untouched "$p" "malformed ident"
-expect 2 "remove: ident mismatch" -- rm_cli --tier files --confirm "$p" --ident 999999:1 "$p"; untouched "$p" "ident mismatch"
+expect 1 "remove: malformed --ident" -- rm_cli --tier files --confirm "$p" --ident 999999 --root "$R/root" "$p"; untouched "$p" "malformed ident"
+# #10: the root guard is what keeps a removal off a project root, so a call
+# that arrives without one is refused rather than run unguarded. Both routes
+# of the original defect: no --root at all (the plugin sent none), and an
+# empty --root value (cmd_list refuses this; cmd_remove used to accept and
+# silently drop it).
+expect 1 "remove: no --root at all" -- rm_cli --tier folder --confirm "$p" --ident "$d" "$p"
+untouched "$p" "no --root"
+expect 1 "remove: an empty --root" -- rm_cli --tier folder --confirm "$p" --ident "$d" --root "" "$p"
+untouched "$p" "empty --root"
+# A root that cannot be resolved -- a drive that is not mounted -- is a
+# refusal, not a root quietly dropped from the guard.
+expect 2 "remove: an unresolvable root" -- \
+  rm_cli --tier folder --confirm "$p" --ident "$d" --root "$R/root" --root /definitely/not/mounted "$p"
+untouched "$p" "unresolvable root"
+
+expect 2 "remove: ident mismatch" -- rm_cli --tier files --confirm "$p" --ident 999999:1 --root "$R/root" "$p"; untouched "$p" "ident mismatch"
 # The reproduction for #9. A device number identifies the filesystem, not the
 # directory, so every project on one disk shares it: confirm a removal for one
 # project, have another moved into its place, and the old check passed. The
@@ -303,27 +318,27 @@ swapB=$(mkproj swapb)
 swapI=$(ident_of "$swapA")
 mv "$swapA" "$swapA.gone" && mv "$swapB" "$swapA"
 expect 2 "remove: the directory was replaced since it was listed" -- \
-  rm_cli --tier folder --confirm "$swapA" --ident "$swapI" "$swapA"
+  rm_cli --tier folder --confirm "$swapA" --ident "$swapI" --root "$R/root" "$swapA"
 untouched "$swapA" "replaced directory"
 
 mkdir -p "$R/root/plain"
-expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --ident "$d" "$R/root/plain"
+expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --ident "$d" --root "$R/root" "$R/root/plain"
 # A bound directory (`devenv --from`) has no devenv.nix of its own: every
 # deleting tier refuses, and its state stays.
 B=$(fresh)
 mkdir -p "$B/bound/.devenv/state/db" && echo data >"$B/bound/.devenv/state/db/x" && touch "$B/bound/devenv.lock"
 for t in files state folder; do
-  expect 2 "remove: bound, tier $t" -- rm_cli --tier "$t" --confirm "$B/bound" --ident "$(ident_of "$B/bound")" "$B/bound"
+  expect 2 "remove: bound, tier $t" -- rm_cli --tier "$t" --confirm "$B/bound" --ident "$(ident_of "$B/bound")" --root "$R/root" "$B/bound"
   [ -f "$B/bound/.devenv/state/db/x" ] && [ -f "$B/bound/devenv.lock" ] || bad "remove: bound, tier $t: nothing may be deleted"
 done
 [ -d "$R/root/plain" ] || bad "remove: no devenv.nix: nothing may be deleted"
-expect 2 "remove: running" -- with_devenv env STUB_PROCESSES=running "$cli" remove --tier files --confirm "$p" --ident "$d" "$p"
+expect 2 "remove: running" -- with_devenv env STUB_PROCESSES=running "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "running"
-expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --ident "$d" "$p"
+expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "unknown"
 
 : >"$STUB_LOG"
-expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --ident "$d" "$p"
+expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 [ ! -e "$p/devenv.nix" ] && [ ! -e "$p/devenv.yaml" ] && [ ! -e "$p/devenv.lock" ] && [ ! -e "$p/.devenv-template" ] || bad "files: devenv files gone"
 [ -f "$p/.devenv/state/db/x" ] || bad "files: .devenv/state kept"
 [ ! -e "$p/.devenv/profile" ] || bad "files: the rest of .devenv gone"
@@ -331,7 +346,7 @@ expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --ident "$d" "$p"
 grep -q "$p :: revoke" "$STUB_LOG" || bad "files: revoked"
 
 p=$(mkproj b)
-expect 0 "remove: state" -- rm_cli --tier state --confirm "$p" --ident "$(ident_of "$p")" "$p"
+expect 0 "remove: state" -- rm_cli --tier state --confirm "$p" --ident "$(ident_of "$p")" --root "$R/root" "$p"
 [ ! -e "$p/.devenv" ] && [ -f "$p/src/main.py" ] || bad "state: .devenv gone, code kept"
 
 p=$(mkproj c)
@@ -339,7 +354,7 @@ expect 0 "remove: folder" -- rm_cli --tier folder --confirm "$p" --ident "$(iden
 [ ! -e "$p" ] && [ -d "$R/root" ] || bad "folder: the project gone, the root kept"
 
 p=$(mkproj d)
-expect 0 "remove: without devenv, nothing can be running" -- "$cli" remove --tier files --confirm "$p" --ident "$(ident_of "$p")" "$p"
+expect 0 "remove: without devenv, nothing can be running" -- "$cli" remove --tier files --confirm "$p" --ident "$(ident_of "$p")" --root "$R/root" "$p"
 [ ! -e "$p/devenv.nix" ] || bad "remove without devenv"
 
 echo "cli: $pass passed, $fail failed"

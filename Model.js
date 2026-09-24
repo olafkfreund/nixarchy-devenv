@@ -803,6 +803,7 @@ function removeRefusal(env, tier, roots, home, status, typedName) {
   if (p === "/") return "Refusing to touch /"
   if (p === stripSlash(home)) return "Refusing to touch your home directory"
   var list = roots || []
+  if (!list.length) return "No project roots are configured; fix projectRoots and refresh"
   for (var i = 0; i < list.length; i++) {
     if (isAncestorOrSelf(p, list[i])) return p + " is a project root, or contains one"
   }
@@ -821,7 +822,9 @@ function removeArgv(env, tier, roots) {
   if (t.id === "revoke") return revokeArgv(env.path)
   if (!env.ident || !/^[0-9]+:[0-9]+$/.test(env.ident)) return null
   var r = rootArgs(roots)
-  if (!r) return null
+  // The root guard lives in the CLI; never call it disarmed. An empty list is
+  // a truthy [], so the length is the part that matters.
+  if (!r || !r.length) return null
   return [CLI, "remove", "--tier", t.id, "--confirm", str(env.path), "--ident", str(env.ident)].concat(r, [str(env.path)])
 }
 

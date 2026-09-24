@@ -41,7 +41,7 @@ test("the folder tier needs the name typed exactly", () => {
   eq(refuse({}, "folder", STOPPED, " app "), "")
 })
 
-test("a row with no device number is refused: refresh first", () => {
+test("a row with no identity token is refused: refresh first", () => {
   ok(/Refresh/.test(refuse({ ident: undefined })))
 })
 
@@ -57,6 +57,18 @@ test("removeArgv confirms the exact path, device and roots", () => {
     "--root", "/home/user/Source", "--root", "/srv/projects", "/home/user/Source/app"])
   eq(Model.removeArgv(env(), "files", ["rel"]), null)
   eq(Model.removeArgv(env({ ident: "" }), "files", ROOTS), null)
+})
+
+// The CLI holds the authoritative root guard, so an argv with no --root at
+// all would ask it to delete with that guard disarmed. rootArgs returns a
+// truthy [] for an empty list, so the length is what has to be checked.
+test("removal is refused with no project roots: the CLI guard would be disarmed", () => {
+  eq(Model.removeArgv(env(), "files", []), null)
+  eq(Model.removeArgv(env(), "folder", undefined), null)
+  ok(/project roots/.test(Model.removeRefusal(env(), "files", [], HOME, STOPPED, "")))
+  // Revoke deletes nothing, so it stays available with no roots at all.
+  eq(Model.removeRefusal(env(), "revoke", [], HOME, null, ""), "")
+  eq(Model.removeArgv(env(), "revoke", []), ["env", "-C", "/home/user/Source/app", "devenv", "revoke"])
 })
 
 test("the tiers say what they keep, and gc says it is for every project", () => {

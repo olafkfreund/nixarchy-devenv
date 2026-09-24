@@ -478,7 +478,8 @@ verify_target() {
   case "$home/" in "$dir"/*) die 2 "refused: $dir contains your home directory." ;; esac
   local r rc
   for r in "${roots[@]}"; do
-    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) || continue
+    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) ||
+      die 2 "refused: the project root $r cannot be resolved; it may be on a drive that is not mounted. Removal needs every root to resolve."
     case "$rc/" in "$dir"/*) die 2 "refused: $dir is a project root, or contains one ($rc)." ;; esac
   done
   [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || die 2 "refused: $dir has no devenv.nix of its own."
@@ -495,7 +496,7 @@ cmd_remove() {
       --ident) ident=${2:-}; shift ;;
       # A plugin older than this command. Say so rather than "unknown option".
       --dev) die 1 "--dev is gone; the plugin calling this is older than the command. Update the plugin." ;;
-      --root) roots+=("${2:-}"); shift ;;
+      --root) [ -n "${2:-}" ] || die 1 "--root needs a directory"; roots+=("$2"); shift ;;
       -*) die 1 "unknown option $1" ;;
       *) [ -z "$dir" ] || die 1 "one directory at a time"; dir=$1 ;;
     esac
@@ -506,6 +507,8 @@ cmd_remove() {
     die 1 "--ident is DEV:INO, as \`list --json\` reports it."
   [ -n "$dir" ] && [ -n "$confirm" ] && [ -n "$ident" ] ||
     die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --ident DEV:INO --root DIR [--root DIR]... DIR"
+  [ ${#roots[@]} -gt 0 ] ||
+    die 1 "remove needs at least one --root: with none there is nothing to protect the project roots."
 
   verify_target
 
