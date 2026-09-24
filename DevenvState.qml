@@ -387,7 +387,7 @@ Singleton {
       root.pendingVerb = ""
       root.pendingName = ""
       // Process state may have changed; ask again for the selected row.
-      if (verb.indexOf("processes") !== -1) { root.status = null; statusDebounce.restart() }
+      if (verb.indexOf("processes") !== -1) { root.status = null; if (root.active || root.background) statusDebounce.restart() }
       if (root.active || root.background) root.refresh()
     }
   }
