@@ -231,6 +231,28 @@ git checkout -- DevenvView.qml
 rm -f FooWidget.qml
 ```
 
+**Correction, found while implementing.** The planted violation above does not
+fire as written. A flake's `${self}` contains only git-**tracked** files, so an
+untracked `FooWidget.qml` never enters the source and the candidate loop cannot
+see it — the check passes and the plant proves nothing. The plant must be:
+
+```
+printf '// placeholder\n' > FooWidget.qml
+echo 'FooWidget {}' >> DevenvView.qml
+git add FooWidget.qml            # <- the missing step
+nix build .#checks.x86_64-linux.files -L
+# fails: "DevenvView.qml references FooWidget, but FooWidget.qml is not in
+#         flake.nix's files list"
+```
+
+Revert with `git rm -f --cached FooWidget.qml && rm -f FooWidget.qml &&
+git checkout -- DevenvView.qml`.
+
+This is also the check's real boundary, worth stating: it catches a component
+that is tracked but missing from `files`, which is the case that actually
+happens — you `git add` a new component and forget the flake. A component that
+is neither tracked nor packaged is invisible to Nix and cannot be caught here.
+
 **#19 — `homeManagerModule` stub eval**
 
 ```

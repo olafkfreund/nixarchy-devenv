@@ -152,6 +152,37 @@
               touch "$out"
             '';
 
+          # Every local component a packaged .qml references (Quickshell
+          # resolves siblings by bare filename, with no import line) or imports
+          # by path must itself be in the package. Candidate names come from
+          # the whole repository, not just what is packaged: that is what
+          # catches a new file that was referenced but never added to the
+          # `files` list above, which otherwise passes every check here and
+          # fails only when the shell loads the plugin.
+          files = let plugin = self.packages.${system}.plugin; in
+            pkgs.runCommand "nixarchy-devenv-files-check" { } ''
+              fail=0
+              for f in ${plugin}/*.qml; do
+                base=$(basename "$f" .qml)
+                for other in ${self}/*.qml; do
+                  obase=$(basename "$other" .qml)
+                  [ "$obase" = "$base" ] && continue
+                  if grep -qw "$obase" "$f" && [ ! -f "${plugin}/$obase.qml" ]; then
+                    echo "$base.qml references $obase, but $obase.qml is not in flake.nix's files list" >&2
+                    fail=1
+                  fi
+                done
+                for imp in $(grep -ohE 'import "[^"]+"' "$f" | sed -E 's/import "(.*)"/\1/'); do
+                  [ -f "${plugin}/$imp" ] || {
+                    echo "$base.qml imports \"$imp\", which is not in flake.nix's files list" >&2
+                    fail=1
+                  }
+                done
+              done
+              [ "$fail" -eq 0 ] || exit 1
+              touch "$out"
+            '';
+
           # omarchy-plugin-validate refuses a symlink anywhere in a plugin, and
           # `omarchy plugin add` clones this repository AS the plugin folder.
           repo = pkgs.runCommand "nixarchy-devenv-repo-check" { } ''
