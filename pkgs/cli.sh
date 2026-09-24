@@ -546,12 +546,28 @@ cmd_remove() {
 
   # Processes: stopped, or no devenv at all. Unknown is a no -- a database
   # losing its files under a running server is the failure this prevents.
-  local state
-  state=$(cmd_status --json "$dir" | jq -r '.state + " " + (.devenv | tostring)')
+  local status_json state
+  status_json=$(cmd_status --json "$dir")
+  state=$(printf '%s' "$status_json" | jq -r '.state + " " + (.devenv | tostring)')
   case "$state" in
     "stopped true" | *" false") ;;
     "running true") die 2 "refused: processes are running in $dir; stop them first." ;;
-    *) die 2 "refused: could not tell whether processes are running in $dir." ;;
+    *)
+      # A refused connection is not a running process: it is a manager that
+      # died without cleaning up, leaving its socket behind. devenv then
+      # cannot answer, so neither can we, and the refusal stands -- but on its
+      # own it is a dead end, since there is nothing running to stop. Say what
+      # clears it. Verified against devenv 2.3.1: `up -d` re-establishes the
+      # manager over the stale socket, and `processes down` then leaves it
+      # reporting stopped.
+      case "$(printf '%s' "$status_json" | jq -r '.detail // ""')" in
+        *"Connection refused"* | *"Failed to connect"*)
+          echo "nixarchy-devenv: devenv's process manager is gone but its socket is still there, so it cannot say what is running." >&2
+          echo "nixarchy-devenv: run 'devenv up -d' then 'devenv processes down' in $dir to clear it, then try again." >&2
+          ;;
+      esac
+      die 2 "refused: could not tell whether processes are running in $dir."
+      ;;
   esac
 
   if command -v devenv >/dev/null 2>&1; then
