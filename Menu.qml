@@ -33,7 +33,12 @@ Item {
   // figure that was already correct, and the card's clamp then cut off
   // whatever no longer fitted. The shell's own full-screen menu applies no
   // such transform either.
-  readonly property int viewWidth: Style.space(680)
+  // 986, not 680, and the difference is the whole point. This was 680 while a
+  // 1.45 transform stretched the card to ~986, so the number was written to be
+  // multiplied. Removing the transform without settling this left the menu a
+  // third narrower than it had ever been (#44). The width the menu actually
+  // had is the width it keeps; only the way it gets there changed.
+  readonly property int viewWidth: Style.space(986)
 
   function focusedScreen() {
     var monitor = Hyprland.focusedMonitor
