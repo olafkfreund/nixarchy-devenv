@@ -415,6 +415,9 @@ FocusScope {
           home: DevenvState.hostHome
           foreground: root.foreground
           fontFamily: root.fontFamily
+          fontRow: root.fontRow
+          fontLabel: root.fontLabel
+          fontGlyph: root.fontGlyph
           onSubmitted: function(form, result) { root.submitForm(form, result) }
           onCanceled: root.setMode("list")
         }
@@ -430,6 +433,9 @@ FocusScope {
           exitCode: DevenvState.streamExit
           foreground: root.foreground
           fontFamily: root.fontFamily
+          fontRow: root.fontRow
+          fontLabel: root.fontLabel
+          fontGlyph: root.fontGlyph
           onBackRequested: root.setMode("list")
         }
 
@@ -475,6 +481,9 @@ FocusScope {
           cursorFromKeyboard: root.cursorFromKeyboard
           foreground: root.foreground
           fontFamily: root.fontFamily
+          fontRow: root.fontRow
+          fontLabel: root.fontLabel
+          fontGlyph: root.fontGlyph
 
           onActionRequested: function(path, verb) { root.dispatch(path, verb) }
           onCursorRequested: function(key) { root.setCursorKey(key) }
@@ -642,6 +651,8 @@ FocusScope {
       foreground: root.foreground
       background: Color.popups.background
       fontFamily: root.fontFamily
+      fontRow: root.fontRow
+      fontIcon: root.fontIcon
       onDismissed: root.helpOpen = false
     }
 
