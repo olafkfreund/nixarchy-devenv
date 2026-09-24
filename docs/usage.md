@@ -240,7 +240,16 @@ everything again right before it acts. It refuses:
 - `/` and your home directory;
 - a project root, or anything that contains one;
 - a folder without its own `devenv.nix`;
-- a folder that moved to another device since it was listed.
+- a folder that is not the one that was listed. It is matched by device and
+  inode, so a different project moved to that path since the list was drawn
+  is refused, not deleted;
+- a removal that arrives with no project root to check against, or with one
+  that cannot be resolved -- a root on a drive that is not mounted, say.
+
+The list is checked twice: once when the command starts, and again as the
+last thing before it deletes. Asking devenv whether processes are running,
+and revoking the directory, take seconds; the second check is what makes
+those seconds safe.
 
 `.envrc` is never removed.
 

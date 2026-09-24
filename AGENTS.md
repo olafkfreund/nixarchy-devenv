@@ -200,8 +200,17 @@ These rules are specific to devenv:
     confirmation that names the full path.
   - The CLI, not `Model.js`, performs the authoritative checks just before it
     deletes: canonical path, no symlink escape, not `$HOME`, not `/`, not a
-    project root or an ancestor of one, unchanged since it was confirmed, and
-    no processes running or in an unknown state.
+    project root or an ancestor of one, still the same directory that was
+    listed (device **and inode**, passed as `--ident DEV:INO` -- a device
+    number alone names the filesystem, not the directory), and no processes
+    running or in an unknown state.
+  - Those checks live in `verify_target` and run **twice**: once when the
+    command starts, and again as the last statement before the delete. The
+    status call and `devenv revoke` in between take seconds, and that is the
+    window. Nothing may be inserted between the second call and the `rm`.
+  - `remove` requires at least one `--root`, refuses an empty one, and refuses
+    a root it cannot resolve. `Model.js` never builds a removal argv with no
+    roots: the guard is the CLI's, and it must not be called disarmed.
   - `.envrc` is never removed: this tool writes none, so none can be ours.
   - Every refusal has a filesystem test, and `Model.js` pre-checks have Node
     tests.
