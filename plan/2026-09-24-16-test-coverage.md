@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 16
 spec: spec/2026-09-24-16-test-coverage.md
 ---
