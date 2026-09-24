@@ -68,13 +68,29 @@ nixarchy.podman.
 
 ## Open questions
 
-1. Which fix: derive `uiScale` from screen height, wrap the view in a
-   `Flickable` so it scrolls when clamped, or both? Both is the safe answer and
-   the largest diff.
-2. If `uiScale` becomes derived, what is the reference — a target number of
-   visible rows, a fraction of screen height, or the theme's font scale?
+~~1. Which fix: derive `uiScale` from screen height, wrap the view in a
+`Flickable` so it scrolls when clamped, or both?~~
+~~2. If `uiScale` becomes derived, what is the reference?~~
+~~4. What is the owner's actual resolution, per-monitor scale and theme
+`base-size`?~~
+
+**Answered by the owner, 2026-09-24:** *"it needs to follow the desktop scale
+that is already set."*
+
+So the direction is settled: the menu takes the scale the desktop already has,
+rather than deriving a new one or applying a constant of its own. The owner did
+not give a resolution or `base-size`, because the requirement does not depend on
+one — it must be right at whatever scale is set, not tuned for one screen.
+
+Left for the spec to work out, not to re-decide:
+
+- Which value *is* "the desktop scale that is already set" in this context.
+  Hyprland's per-monitor `scale` is already applied by the compositor to Qt's
+  logical pixels, and the theme's font and spacing scale are already applied by
+  the style helpers. If both are already in effect, the honest reading is that
+  `uiScale` should go away rather than be replaced with a computed value.
+- Whether removing the magnification alone is enough, or an outer `Flickable` is
+  still needed so the surface scrolls if it is ever clamped.
+
 3. Do the sibling plugins change in lockstep, in this PR's wake, or is this repo
-   deliberately allowed to diverge first and prove the approach?
-4. What is the owner's actual resolution, per-monitor scale and theme
-   `base-size`? That decides whether this clips in practice today or only on
-   other people's screens, and therefore how urgent it is.
+   deliberately allowed to diverge first and prove the approach? **Still open.**
