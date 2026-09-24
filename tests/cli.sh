@@ -254,6 +254,9 @@ expect 0 "status: progress only, exit 0" -- with_devenv env STUB_PROCESSES=noise
 jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: exit 0 with no process rows is unknown"
 expect 0 "status stopped" -- with_devenv env STUB_PROCESSES=stopped "$cli" status --json "$S"
 jq -e '.state == "stopped"' "$root/out" >/dev/null || bad "status: stopped"
+expect 0 "status: a row with no restart count" -- with_devenv env STUB_PROCESSES=malformed "$cli" status --json "$S"
+jq -e '.state == "unknown" and (.processes == [])' "$root/out" >/dev/null ||
+  bad "status: a line carrying restarts: with no number is unknown, never running"
 expect 0 "status hang" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" status --json "$S"
 jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: a hang is unknown"
 expect 0 "status fail" -- with_devenv env STUB_PROCESSES=fail "$cli" status --json "$S"
@@ -261,6 +264,7 @@ jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: an error is u
 expect 0 "status without devenv" -- "$cli" status --json "$S"
 jq -e '.state == "unknown" and .devenv == false' "$root/out" >/dev/null || bad "status: no devenv"
 expect 2 "status of missing dir" -- "$cli" status --json "$root/nope"
+
 
 # ---- remove -------------------------------------------------------------------
 

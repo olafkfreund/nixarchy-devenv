@@ -435,7 +435,10 @@ cmd_status() {
   # is devenv's progress on stderr ("• Validating lock", "✓ …"), which is not
   # a process and must not become one.
   local rows
-  rows=$(printf '%s\n' "$out" | grep -E '^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+restarts:' || true)
+  # The count has to be a number, and has to end the line: a stray line that
+  # merely contains the word would otherwise become a process, and the row
+  # would read "running" where the rule says anything unrecognised is unknown.
+  rows=$(printf '%s\n' "$out" | grep -E '^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+restarts:[[:space:]]*[0-9]+[[:space:]]*$' || true)
   if [ "$rc" = 0 ] && [ -n "$rows" ]; then
     printf '%s\n' "$rows" | jq -R -s '
       {state: "running", devenv: true,

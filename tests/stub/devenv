@@ -50,6 +50,9 @@ YAML
       # slow AND permissive; hang is slow but answers unknown, which refuses
       # on its own and so proves nothing about the window.
       slow) sleep 3; echo "  x No process manager is running. Start processes first with \`devenv up -d\`" >&2; exit 1 ;;
+      # malformed: exit 0 and a line carrying the word but no count. Only a
+      # `name status restarts: N` row is a process; this must read unknown.
+      malformed) printf 'garbage running restarts: nope\n' ;;
       fail) echo "error: boom" >&2; exit 1 ;;
     esac
     ;;
