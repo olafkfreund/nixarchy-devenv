@@ -164,7 +164,15 @@
               du -sh ${self}/docs/img >&2
               echo "docs/img is over 8 MB" >&2; exit 1
             fi
-            if grep -rnwE 'pacman|yay' ${self}/*.qml ${self}/*.js ${self}/pkgs ${self}/data; then
+            # Excludes only the files whose job is to talk *about* the rule:
+            # flake.nix carries this pattern's own text, AGENTS.md states the
+            # rule, and intent/spec/plan hold design history that quotes it
+            # while proposing to change it. Nothing else may mention either
+            # word, not even in a comment.
+            if grep -rnwE 'pacman|yay' ${self} \
+                --exclude-dir=.git --exclude-dir=result \
+                --exclude=flake.nix --exclude=AGENTS.md \
+                --exclude-dir=intent --exclude-dir=spec --exclude-dir=plan; then
               echo "Arch package manager reference above" >&2; exit 1
             fi
             touch "$out"
