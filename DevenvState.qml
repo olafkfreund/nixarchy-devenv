@@ -399,7 +399,7 @@ Singleton {
     onExited: function(code) {
       if (code !== 0) root.lastError = Model.errorText(downErr.text) || ("stopping " + name + " failed (exit " + code + ")")
       root.status = null
-      statusDebounce.restart()
+      if (root.active || root.background) statusDebounce.restart()
     }
   }
 
