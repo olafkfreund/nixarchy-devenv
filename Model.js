@@ -248,7 +248,7 @@ function parseList(raw) {
       lockfile: r.lockfile === true,
       template: /^[a-z0-9-]+$/.test(str(r.template)) ? str(r.template) : "custom",
       hasProcesses: r.hasProcesses === true,
-      dev: typeof r.dev === "number" ? r.dev : -1,
+      ident: typeof r.ident === "string" && /^[0-9]+:[0-9]+$/.test(r.ident) ? r.ident : "",
       mtime: typeof r.mtime === "number" ? r.mtime : 0,
       from: sanitize(r.from, 200),
       profiles: parseProfiles(r.profiles)
@@ -806,7 +806,7 @@ function removeRefusal(env, tier, roots, home, status, typedName) {
   for (var i = 0; i < list.length; i++) {
     if (isAncestorOrSelf(p, list[i])) return p + " is a project root, or contains one"
   }
-  if (typeof env.dev !== "number" || env.dev < 0) return "Refresh the list first"
+  if (!env.ident) return "Refresh the list first"
   if (!status || status.devenv !== false) {
     if (!status || status.state === "unknown") return "Could not tell whether its processes are running (p checks)"
     if (status.state === "running") return "Its processes are running; stop them first (s)"
@@ -819,10 +819,10 @@ function removeArgv(env, tier, roots) {
   var t = tierById(tier)
   if (!env || !t || !isAbsPath(env.path)) return null
   if (t.id === "revoke") return revokeArgv(env.path)
-  if (typeof env.dev !== "number" || env.dev < 0) return null
+  if (!env.ident || !/^[0-9]+:[0-9]+$/.test(env.ident)) return null
   var r = rootArgs(roots)
   if (!r) return null
-  return [CLI, "remove", "--tier", t.id, "--confirm", str(env.path), "--dev", String(env.dev)].concat(r, [str(env.path)])
+  return [CLI, "remove", "--tier", t.id, "--confirm", str(env.path), "--ident", str(env.ident)].concat(r, [str(env.path)])
 }
 
 function gcMessage() {

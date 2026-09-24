@@ -95,7 +95,7 @@ cmd_help() {
   nixarchy-devenv list --json [--root DIR]...
   nixarchy-devenv templates --json
   nixarchy-devenv status --json DIR
-  nixarchy-devenv remove --tier files|state|folder --confirm DIR --dev N [--root DIR]... DIR
+  nixarchy-devenv remove --tier files|state|folder --confirm DIR --ident DEV:INO --root DIR [--root DIR]... DIR
 
 --allow runs `devenv allow` afterwards, so the environment activates on cd.
 It is off unless you ask: a devenv.nix is code that runs when you enter it.
@@ -374,7 +374,7 @@ cmd_list() {
       --argjson lockfile "$([ -f "$real/devenv.lock" ] && echo true || echo false)" \
       --arg template "$(template_of "$real")" \
       --argjson hasProcesses "$(grep -qE '^[[:space:]]*(processes|services)[[:space:]]*[.=]' "$real/devenv.nix" && echo true || echo false)" \
-      --argjson dev "$(stat -c %d "$real")" \
+      --arg ident "$(stat -c '%d:%i' -- "$real")" \
       --argjson mtime "$(stat -c %Y "$real/devenv.nix")" \
       '$ARGS.named + {from: "", profiles: []}'
   done <"$tmp/candidates" >"$tmp/rows"
@@ -400,10 +400,10 @@ cmd_list() {
         --arg path "$real" \
         --arg name "$(basename "$real")" \
         --argjson lockfile "$([ -f "$real/devenv.lock" ] && echo true || echo false)" \
-        --argjson dev "$(stat -c %d "$real")" \
+        --arg ident "$(stat -c '%d:%i' -- "$real")" \
         --argjson mtime "$(stat -c %Y "$real")" \
         '{path: $path, name: $name, allowed: true, lockfile: $lockfile, template: "custom",
-          hasProcesses: true, dev: $dev, mtime: $mtime, from, profiles}' <<<"$b"
+          hasProcesses: true, ident: $ident, mtime: $mtime, from, profiles}' <<<"$b"
     done <"$tmp/bound" >>"$tmp/rows"
   fi
 
@@ -482,16 +482,19 @@ verify_target() {
     case "$rc/" in "$dir"/*) die 2 "refused: $dir is a project root, or contains one ($rc)." ;; esac
   done
   [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || die 2 "refused: $dir has no devenv.nix of its own."
-  [ "$(stat -c %d -- "$dir")" = "$dev" ] || die 2 "refused: $dir is not on the device it was listed on; refresh and try again."
+  [ "$(stat -c '%d:%i' -- "$dir")" = "$ident" ] ||
+    die 2 "refused: $dir is not the directory that was listed; it has been replaced since. Refresh and try again."
 }
 
 cmd_remove() {
-  local tier="" confirm="" dev="" dir="" roots=()
+  local tier="" confirm="" ident="" dir="" roots=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --tier) tier=${2:-}; shift ;;
       --confirm) confirm=${2:-}; shift ;;
-      --dev) dev=${2:-}; shift ;;
+      --ident) ident=${2:-}; shift ;;
+      # A plugin older than this command. Say so rather than "unknown option".
+      --dev) die 1 "--dev is gone; the plugin calling this is older than the command. Update the plugin." ;;
       --root) roots+=("${2:-}"); shift ;;
       -*) die 1 "unknown option $1" ;;
       *) [ -z "$dir" ] || die 1 "one directory at a time"; dir=$1 ;;
@@ -499,8 +502,10 @@ cmd_remove() {
     shift
   done
   case "$tier" in files | state | folder) ;; *) die 1 "--tier is files, state or folder" ;; esac
-  [ -n "$dir" ] && [ -n "$confirm" ] && [[ $dev =~ ^[0-9]+$ ]] ||
-    die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --dev N [--root DIR]... DIR"
+  [ -z "$ident" ] || [[ $ident =~ ^[0-9]+:[0-9]+$ ]] ||
+    die 1 "--ident is DEV:INO, as \`list --json\` reports it."
+  [ -n "$dir" ] && [ -n "$confirm" ] && [ -n "$ident" ] ||
+    die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --ident DEV:INO --root DIR [--root DIR]... DIR"
 
   verify_target
 

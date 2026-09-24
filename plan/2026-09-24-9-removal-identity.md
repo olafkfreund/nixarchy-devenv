@@ -228,6 +228,26 @@ from 70 by one per `test()` block added, ≈72) and
 `grep -rn '\-\-dev\b' pkgs/ Model.js tests/` must return only the deliberate
 skew arm and the test that exercises it.
 
+**Deviation, recorded while implementing step 2.** The reproduction needs to
+swap one directory for another, which needs `mv` — and `mv` was not among the
+tools `tests/cli.sh` symlinks into its restricted PATH (line 25). With no `mv`,
+both renames silently did nothing, the inode never changed, and the new test
+reported the removal succeeding. `mv` is now in that list, beside the `rm` and
+`mkdir` already there. The stub PATH guarantee is untouched: the list is
+coreutils-class tools only, and still contains no `devenv` and no `nix`.
+
+Two further points this step turned up, both folded in above:
+
+- The old `remove: dev mismatch` test becomes two, because `--ident` has a
+  shape as well as a value: `remove: malformed --ident` (exit 1, a usage
+  error) and `remove: ident mismatch` (exit 2, a refusal).
+- `tests/model/parsing.test.js` pins the full row shape in two assertions, so
+  both had to move from `dev` to `ident` in this commit as well. The default
+  for a row an older CLI leaves out is now `""`, not `-1`.
+
+Expected count after this step: **65 passed** (63 + the reproduction + the
+split assertion), and **70 pass** in the model suite, unchanged.
+
 ### 3. The root guard cannot be disarmed, end to end (#10)
 
 Merged from what were two steps: `rootArgs` already exists, so the `Model.js`

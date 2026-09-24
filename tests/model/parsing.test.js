@@ -11,7 +11,7 @@ test("parseList keeps well-formed rows and types every field", () => {
   eq(out.ok, true)
   eq(out.rows.length, 1)
   eq(out.rows[0], { path: "/home/user/Source/app", name: "app", allowed: true, lockfile: true,
-    template: "python", hasProcesses: false, dev: 2049, mtime: 1000, from: "", profiles: [] })
+    template: "python", hasProcesses: false, ident: "2049:1234", mtime: 1000, from: "", profiles: [] })
 })
 
 test("parseList drops rows without a safe absolute path", () => {
@@ -23,7 +23,7 @@ test("parseList drops rows without a safe absolute path", () => {
 test("parseList defaults what an older or newer CLI leaves out", () => {
   const out = Model.parseList(list([{ path: "/p/x", extra: "ignored" }]))
   eq(out.rows[0], { path: "/p/x", name: "x", allowed: false, lockfile: false, template: "custom",
-    hasProcesses: false, dev: -1, mtime: 0, from: "", profiles: [] })
+    hasProcesses: false, ident: "", mtime: 0, from: "", profiles: [] })
 })
 
 test("parseList: a template that is not an id is custom; truthy non-booleans are false", () => {

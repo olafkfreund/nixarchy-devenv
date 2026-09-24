@@ -42,7 +42,7 @@ test("the folder tier needs the name typed exactly", () => {
 })
 
 test("a row with no device number is refused: refresh first", () => {
-  ok(/Refresh/.test(refuse({ dev: undefined })))
+  ok(/Refresh/.test(refuse({ ident: undefined })))
 })
 
 test("unknown tiers and missing environments are refused", () => {
@@ -53,10 +53,10 @@ test("unknown tiers and missing environments are refused", () => {
 
 test("removeArgv confirms the exact path, device and roots", () => {
   eq(Model.removeArgv(env(), "state", ROOTS), ["nixarchy-devenv", "remove", "--tier", "state",
-    "--confirm", "/home/user/Source/app", "--dev", "2049",
+    "--confirm", "/home/user/Source/app", "--ident", "2049:1234",
     "--root", "/home/user/Source", "--root", "/srv/projects", "/home/user/Source/app"])
   eq(Model.removeArgv(env(), "files", ["rel"]), null)
-  eq(Model.removeArgv(env({ dev: -1 }), "files", ROOTS), null)
+  eq(Model.removeArgv(env({ ident: "" }), "files", ROOTS), null)
 })
 
 test("the tiers say what they keep, and gc says it is for every project", () => {
