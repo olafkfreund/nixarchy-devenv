@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "nixarchy.devenv",
   "name": "Dev environments",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "olafkfreund",
   "license": "MIT",
   "description": "devenv for Omarchy, on the bar and on a key: every devenv environment under your project roots, enter one in a terminal, edit it, start and stop its processes, update its lock, allow or revoke it, remove it in steps from revoke to delete, and create a new project from templates for languages, mobile and cloud. Create and update stream their log into the panel.",
