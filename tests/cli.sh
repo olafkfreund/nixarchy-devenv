@@ -254,6 +254,9 @@ expect 0 "status: progress only, exit 0" -- with_devenv env STUB_PROCESSES=noise
 jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: exit 0 with no process rows is unknown"
 expect 0 "status stopped" -- with_devenv env STUB_PROCESSES=stopped "$cli" status --json "$S"
 jq -e '.state == "stopped"' "$root/out" >/dev/null || bad "status: stopped"
+expect 0 "status: a row with no restart count" -- with_devenv env STUB_PROCESSES=malformed "$cli" status --json "$S"
+jq -e '.state == "unknown" and (.processes == [])' "$root/out" >/dev/null ||
+  bad "status: a line carrying restarts: with no number is unknown, never running"
 expect 0 "status hang" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" status --json "$S"
 jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: a hang is unknown"
 expect 0 "status fail" -- with_devenv env STUB_PROCESSES=fail "$cli" status --json "$S"
@@ -261,6 +264,23 @@ jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: an error is u
 expect 0 "status without devenv" -- "$cli" status --json "$S"
 jq -e '.state == "unknown" and .devenv == false' "$root/out" >/dev/null || bad "status: no devenv"
 expect 2 "status of missing dir" -- "$cli" status --json "$root/nope"
+
+# #21: devenv's scaffold with neither the placeholder nor a closing brace at
+# column zero. The splice has nowhere inside the attrset to land, so init
+# refuses with the lines to paste rather than underflowing into a broken sed
+# and leaving a half-written file behind.
+d3=$(fresh)
+expect 4 "init: a scaffold the splice cannot land in" -- \
+  with_devenv env STUB_INIT_NO_BRACE=1 bash -c "cd '$d3' && '$cli' init --no-git python"
+grep -q 'by hand' "$root/err" || bad "init: no-brace scaffold names the lines to paste"
+grep -q 'languages.python' "$root/err" || bad "init: no-brace scaffold prints the preset"
+grep -q 'languages.python' "$d3/devenv.nix" && bad "init: no-brace scaffold leaves devenv.nix unspliced"
+[ -f "$d3/devenv.nix" ] || bad "init: no-brace scaffold keeps what devenv init wrote"
+# `new` cleans up after itself: the partial directory goes.
+d4=$(fresh)
+expect 4 "new: a scaffold the splice cannot land in" -- \
+  with_devenv env STUB_INIT_NO_BRACE=1 "$cli" new --parent "$d4" --name proj --no-git python
+[ ! -e "$d4/proj" ] || bad "new: the partial directory is removed"
 
 # ---- remove -------------------------------------------------------------------
 
