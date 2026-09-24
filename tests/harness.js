@@ -30,7 +30,7 @@ function listRow(overrides) {
     lockfile: true,
     template: "python",
     hasProcesses: false,
-    dev: 2049,
+    ident: "2049:1234",
     mtime: 1000
   }, overrides || {})
 }

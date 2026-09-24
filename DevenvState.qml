@@ -24,6 +24,20 @@ Singleton {
   readonly property var rootsInfo: Model.rootsFor(
     settings.projectRoots === undefined ? Model.DEFAULT_ROOTS : settings.projectRoots, hostHome)
   readonly property var roots: rootsInfo.roots
+
+  // Removal checks against these. The union of what is configured and what the
+  // CLI resolved: a root on an unmounted drive drops out of canonicalRoots, and
+  // it must still reach the CLI so the CLI can refuse the removal. Index loops,
+  // because both sides are read through a var property and may be a Qt sequence
+  // wrapper rather than a JS array.
+  readonly property var guardRoots: {
+    var out = []
+    var i
+    for (i = 0; i < (roots ? roots.length : 0); i++) out.push(roots[i])
+    for (i = 0; i < (canonicalRoots ? canonicalRoots.length : 0); i++)
+      if (out.indexOf(canonicalRoots[i]) === -1) out.push(canonicalRoots[i])
+    return out
+  }
   readonly property var editor: Model.editorWords(settings.terminalEditor, Quickshell.env("EDITOR") || "")
 
   // A token to prove from outside that every surface holds this one instance.
@@ -264,9 +278,9 @@ Singleton {
   function remove(path, tier, typedName) {
     var e = envFor(path)
     if (!e) return false
-    var why = Model.removeRefusal(e, tier, root.canonicalRoots, root.hostHome, root.statusFor(e.path), typedName)
+    var why = Model.removeRefusal(e, tier, root.guardRoots, root.hostHome, root.statusFor(e.path), typedName)
     if (why) { root.lastError = why; return false }
-    return run(Model.removeArgv(e, tier, root.canonicalRoots), tier === "revoke" ? "revoking" : "removing", e.name)
+    return run(Model.removeArgv(e, tier, root.guardRoots), tier === "revoke" ? "revoking" : "removing", e.name)
   }
 
   function appendLog(line) {

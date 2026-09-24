@@ -125,8 +125,15 @@ layout):
   - it is not `/`, your home directory, or a project root (or anything
     containing one);
   - it has its own `devenv.nix`;
-  - it is on the device it was listed on;
+  - it is the same directory that was listed, by device and inode -- not
+    merely one at the same path;
+  - at least one project root was passed, and every one of them resolves;
   - its processes are stopped. If that cannot be told, it refuses.
+
+  That whole list runs twice: once up front, so a bad request is refused
+  before anything slow happens, and again as the last thing before the
+  delete, because asking devenv about processes and revoking the directory
+  take seconds during which the target could be swapped.
 
   `.devenv/state`, where a service keeps its database, goes only when you
   pick "files and state". `.envrc` is never removed.

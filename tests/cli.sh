@@ -22,7 +22,7 @@ mkdir -p "$HOME" "$XDG_DATA_HOME/devenv"
 # devenv or nix. "No devenv" has to mean no devenv, and nothing here may reach
 # the network or the real trust database.
 mkdir -p "$root/bin"
-for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir sleep touch ln sort uniq wc sha256sum stat; do
+for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir mv sleep touch ln sort uniq wc sha256sum stat; do
   ln -s "$(command -v "$c")" "$root/bin/$c"
 done
 base_path="$root/bin"
@@ -219,11 +219,11 @@ paths | grep -qxF "$O/outside" || bad "list: allowed path outside the roots is l
 jq -e '.skipped == 3' "$out" >/dev/null || bad "list: 3 malformed allow lines counted, got $(jq .skipped "$out")"
 jq -e '.warnings | length == 1 and (.[0] | test("missing"))' "$out" >/dev/null || bad "list: missing root warned"
 row() { jq -c --arg p "$1" '.rows[] | select(.path == $p)' "$out"; }
-row "$L/a" | jq -e '.allowed and .lockfile and .template == "python" and (.hasProcesses | not) and (.dev|type=="number")' >/dev/null || bad "list: row a fields"
+row "$L/a" | jq -e '.allowed and .lockfile and .template == "python" and (.hasProcesses | not) and (.ident|test("^[0-9]+:[0-9]+$"))' >/dev/null || bad "list: row a fields"
 row "$L/real" | jq -e '(.allowed | not) and (.lockfile | not) and .template == "custom" and (.hasProcesses | not)' >/dev/null || bad "list: bad .devenv-template is custom, commented processes ignored"
 row "$L/a/nested" | jq -e '.hasProcesses' >/dev/null || bad "list: hasProcesses"
 row "$L/a" | jq -e '.from == "" and .profiles == []' >/dev/null || bad "list: local rows have an empty from"
-row "$O/bound" | jq -e '.allowed and .template == "custom" and .hasProcesses and .lockfile and .from == "github:org/env?dir=x" and .profiles == ["backend"] and (.dev|type=="number")' >/dev/null || bad "list: bound row fields"
+row "$O/bound" | jq -e '.allowed and .template == "custom" and .hasProcesses and .lockfile and .from == "github:org/env?dir=x" and .profiles == ["backend"] and (.ident|test("^[0-9]+:[0-9]+$"))' >/dev/null || bad "list: bound row fields"
 [ "$(paths | grep -cxF "$L/boundlocal")" = 1 ] || bad "list: a bound directory with its own devenv.nix is one row"
 row "$L/boundlocal" | jq -e '.from == ""' >/dev/null || bad "list: its own devenv.nix wins over the binding"
 ! paths | grep -q "/boundbelow$" || bad "list: a binding below a local project is shadowed"
@@ -274,43 +274,105 @@ mkproj() {
   echo 'use devenv' >"$d/.envrc"
   echo "$d"
 }
-dev_of() { stat -c %d "$1"; }
+ident_of() { stat -c '%d:%i' -- "$1"; }
 rm_cli() { with_devenv "$cli" remove "$@"; }
 untouched() { [ -f "$1/devenv.nix" ] && [ -f "$1/src/main.py" ] && [ -f "$1/.devenv/state/db/x" ] || bad "$2: nothing may be deleted"; }
 
 p=$(mkproj a)
-d=$(dev_of "$p")
-expect 1 "remove: bad tier" -- rm_cli --tier all --confirm "$p" --dev "$d" "$p"
-expect 1 "remove: no --dev" -- rm_cli --tier files --confirm "$p" "$p"
-expect 2 "remove: confirm mismatch" -- rm_cli --tier files --confirm "$p/" --dev "$d" "$p"; untouched "$p" "confirm mismatch"
+d=$(ident_of "$p")
+expect 1 "remove: bad tier" -- rm_cli --tier all --confirm "$p" --ident "$d" --root "$R/root" "$p"
+expect 1 "remove: no --ident" -- rm_cli --tier files --confirm "$p" "$p"
+expect 2 "remove: confirm mismatch" -- rm_cli --tier files --confirm "$p/" --ident "$d" --root "$R/root" "$p"; untouched "$p" "confirm mismatch"
 ln -s "$p" "$R/alias"
-expect 2 "remove: symlinked dir" -- rm_cli --tier folder --confirm "$R/alias" --dev "$d" "$R/alias"; untouched "$p" "symlink"
-expect 2 "remove: HOME" -- rm_cli --tier folder --confirm "$HOME" --dev "$(dev_of "$HOME")" "$HOME"
-expect 2 "remove: a root" -- rm_cli --tier folder --confirm "$R/root" --dev "$(dev_of "$R/root")" --root "$R/root" "$R/root"
+expect 2 "remove: symlinked dir" -- rm_cli --tier folder --confirm "$R/alias" --ident "$d" --root "$R/root" "$R/alias"; untouched "$p" "symlink"
+expect 2 "remove: HOME" -- rm_cli --tier folder --confirm "$HOME" --ident "$(ident_of "$HOME")" --root "$R/root" "$HOME"
+expect 2 "remove: a root" -- rm_cli --tier folder --confirm "$R/root" --ident "$(ident_of "$R/root")" --root "$R/root" "$R/root"
 echo '{ }' >"$R/devenv.nix"
-expect 2 "remove: a root's parent" -- rm_cli --tier folder --confirm "$R" --dev "$(dev_of "$R")" --root "$R/root" "$R"
+expect 2 "remove: a root's parent" -- rm_cli --tier folder --confirm "$R" --ident "$(ident_of "$R")" --root "$R/root" "$R"
 [ -d "$R/root" ] || bad "remove: a root's parent: nothing may be deleted"
 ln -s "$R/root" "$R/rootlink"
-expect 2 "remove: a root given as a symlink" -- rm_cli --tier folder --confirm "$R" --dev "$(dev_of "$R")" --root "$R/rootlink" "$R"
-expect 2 "remove: dev mismatch" -- rm_cli --tier files --confirm "$p" --dev 999999 "$p"; untouched "$p" "dev mismatch"
+expect 2 "remove: a root given as a symlink" -- rm_cli --tier folder --confirm "$R" --ident "$(ident_of "$R")" --root "$R/rootlink" "$R"
+expect 1 "remove: malformed --ident" -- rm_cli --tier files --confirm "$p" --ident 999999 --root "$R/root" "$p"; untouched "$p" "malformed ident"
+# #10: the root guard is what keeps a removal off a project root, so a call
+# that arrives without one is refused rather than run unguarded. Both routes
+# of the original defect: no --root at all (the plugin sent none), and an
+# empty --root value (cmd_list refuses this; cmd_remove used to accept and
+# silently drop it).
+expect 1 "remove: no --root at all" -- rm_cli --tier folder --confirm "$p" --ident "$d" "$p"
+untouched "$p" "no --root"
+expect 1 "remove: an empty --root" -- rm_cli --tier folder --confirm "$p" --ident "$d" --root "" "$p"
+untouched "$p" "empty --root"
+# A root that cannot be resolved -- a drive that is not mounted -- is a
+# refusal, not a root quietly dropped from the guard.
+expect 2 "remove: an unresolvable root" -- \
+  rm_cli --tier folder --confirm "$p" --ident "$d" --root "$R/root" --root /definitely/not/mounted "$p"
+untouched "$p" "unresolvable root"
+
+expect 2 "remove: ident mismatch" -- rm_cli --tier files --confirm "$p" --ident 999999:1 --root "$R/root" "$p"; untouched "$p" "ident mismatch"
+# The reproduction for #9. A device number identifies the filesystem, not the
+# directory, so every project on one disk shares it: confirm a removal for one
+# project, have another moved into its place, and the old check passed. The
+# inode differs, so this must refuse.
+swapA=$(mkproj swapa)
+swapB=$(mkproj swapb)
+swapI=$(ident_of "$swapA")
+mv "$swapA" "$swapA.gone" && mv "$swapB" "$swapA"
+expect 2 "remove: the directory was replaced since it was listed" -- \
+  rm_cli --tier folder --confirm "$swapA" --ident "$swapI" --root "$R/root" "$swapA"
+untouched "$swapA" "replaced directory"
+
 mkdir -p "$R/root/plain"
-expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --dev "$d" "$R/root/plain"
+expect 2 "remove: no devenv.nix" -- rm_cli --tier folder --confirm "$R/root/plain" --ident "$d" --root "$R/root" "$R/root/plain"
 # A bound directory (`devenv --from`) has no devenv.nix of its own: every
 # deleting tier refuses, and its state stays.
 B=$(fresh)
 mkdir -p "$B/bound/.devenv/state/db" && echo data >"$B/bound/.devenv/state/db/x" && touch "$B/bound/devenv.lock"
 for t in files state folder; do
-  expect 2 "remove: bound, tier $t" -- rm_cli --tier "$t" --confirm "$B/bound" --dev "$(dev_of "$B/bound")" "$B/bound"
+  expect 2 "remove: bound, tier $t" -- rm_cli --tier "$t" --confirm "$B/bound" --ident "$(ident_of "$B/bound")" --root "$R/root" "$B/bound"
   [ -f "$B/bound/.devenv/state/db/x" ] && [ -f "$B/bound/devenv.lock" ] || bad "remove: bound, tier $t: nothing may be deleted"
 done
 [ -d "$R/root/plain" ] || bad "remove: no devenv.nix: nothing may be deleted"
-expect 2 "remove: running" -- with_devenv env STUB_PROCESSES=running "$cli" remove --tier files --confirm "$p" --dev "$d" "$p"
+expect 2 "remove: running" -- with_devenv env STUB_PROCESSES=running "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "running"
-expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --dev "$d" "$p"
+expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "unknown"
 
+# #11: the checks used to run once, up front, and were then separated from the
+# delete by a devenv processes list under a ten-second timeout and a devenv
+# revoke. These two swap the target inside that window. The stub sleeps three
+# seconds; the swap lands after one. Neither asserts on timing -- only that the
+# removal refused and the tree is intact.
+W=$(fresh)
+wp=$(mkproj winA); wq=$(mkproj winB); wi=$(ident_of "$wp")
+with_devenv env STUB_PROCESSES=slow "$cli" remove --tier folder --confirm "$wp" \
+  --ident "$wi" --root "$R/root" "$wp" >"$root/out" 2>"$root/err" &
+wpid=$!
+sleep 1; rm -rf "$wp"; mv "$wq" "$wp"
+wait "$wpid" && wrc=0 || wrc=$?
+[ "$wrc" = 2 ] || bad "remove: swapped inside the window: exit $wrc, wanted 2"
+pass=$((pass + 1))
+[ -f "$wp/devenv.nix" ] || bad "remove: swapped inside the window: nothing may be deleted"
+grep -q 'devenv allow' "$root/err" || bad "remove: swapped inside the window: the revoke is announced"
+grep -q "$wp :: revoke" "$STUB_LOG" || bad "remove: swapped inside the window: revoke ran"
+
+# The same window, but an ancestor is replaced rather than the target itself.
+# This is the canonical-path check being re-run, not the identity check.
+ap=$(mkproj ancA)
+mkdir -p "$W/other/ancA" && echo '{ }' >"$W/other/ancA/devenv.nix"
+ai=$(ident_of "$ap")
+with_devenv env STUB_PROCESSES=slow "$cli" remove --tier folder --confirm "$ap" \
+  --ident "$ai" --root "$R/root" "$ap" >"$root/out" 2>"$root/err" &
+apid=$!
+sleep 1; mv "$R/root" "$R/root.real"; ln -s "$W/other" "$R/root"
+wait "$apid" && arc=0 || arc=$?
+rm -f "$R/root"; mv "$R/root.real" "$R/root"
+[ "$arc" = 2 ] || bad "remove: an ancestor swapped for a symlink: exit $arc, wanted 2"
+pass=$((pass + 1))
+[ -f "$ap/devenv.nix" ] || bad "remove: an ancestor swapped: the target may not be deleted"
+[ -f "$W/other/ancA/devenv.nix" ] || bad "remove: an ancestor swapped: the other tree may not be touched"
+
 : >"$STUB_LOG"
-expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --dev "$d" "$p"
+expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 [ ! -e "$p/devenv.nix" ] && [ ! -e "$p/devenv.yaml" ] && [ ! -e "$p/devenv.lock" ] && [ ! -e "$p/.devenv-template" ] || bad "files: devenv files gone"
 [ -f "$p/.devenv/state/db/x" ] || bad "files: .devenv/state kept"
 [ ! -e "$p/.devenv/profile" ] || bad "files: the rest of .devenv gone"
@@ -318,15 +380,15 @@ expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --dev "$d" "$p"
 grep -q "$p :: revoke" "$STUB_LOG" || bad "files: revoked"
 
 p=$(mkproj b)
-expect 0 "remove: state" -- rm_cli --tier state --confirm "$p" --dev "$(dev_of "$p")" "$p"
+expect 0 "remove: state" -- rm_cli --tier state --confirm "$p" --ident "$(ident_of "$p")" --root "$R/root" "$p"
 [ ! -e "$p/.devenv" ] && [ -f "$p/src/main.py" ] || bad "state: .devenv gone, code kept"
 
 p=$(mkproj c)
-expect 0 "remove: folder" -- rm_cli --tier folder --confirm "$p" --dev "$(dev_of "$p")" --root "$R/root" "$p"
+expect 0 "remove: folder" -- rm_cli --tier folder --confirm "$p" --ident "$(ident_of "$p")" --root "$R/root" "$p"
 [ ! -e "$p" ] && [ -d "$R/root" ] || bad "folder: the project gone, the root kept"
 
 p=$(mkproj d)
-expect 0 "remove: without devenv, nothing can be running" -- "$cli" remove --tier files --confirm "$p" --dev "$(dev_of "$p")" "$p"
+expect 0 "remove: without devenv, nothing can be running" -- "$cli" remove --tier files --confirm "$p" --ident "$(ident_of "$p")" --root "$R/root" "$p"
 [ ! -e "$p/devenv.nix" ] || bad "remove without devenv"
 
 echo "cli: $pass passed, $fail failed"

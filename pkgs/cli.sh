@@ -95,7 +95,7 @@ cmd_help() {
   nixarchy-devenv list --json [--root DIR]...
   nixarchy-devenv templates --json
   nixarchy-devenv status --json DIR
-  nixarchy-devenv remove --tier files|state|folder --confirm DIR --dev N [--root DIR]... DIR
+  nixarchy-devenv remove --tier files|state|folder --confirm DIR --ident DEV:INO --root DIR [--root DIR]... DIR
 
 --allow runs `devenv allow` afterwards, so the environment activates on cd.
 It is off unless you ask: a devenv.nix is code that runs when you enter it.
@@ -374,7 +374,7 @@ cmd_list() {
       --argjson lockfile "$([ -f "$real/devenv.lock" ] && echo true || echo false)" \
       --arg template "$(template_of "$real")" \
       --argjson hasProcesses "$(grep -qE '^[[:space:]]*(processes|services)[[:space:]]*[.=]' "$real/devenv.nix" && echo true || echo false)" \
-      --argjson dev "$(stat -c %d "$real")" \
+      --arg ident "$(stat -c '%d:%i' -- "$real")" \
       --argjson mtime "$(stat -c %Y "$real/devenv.nix")" \
       '$ARGS.named + {from: "", profiles: []}'
   done <"$tmp/candidates" >"$tmp/rows"
@@ -400,10 +400,10 @@ cmd_list() {
         --arg path "$real" \
         --arg name "$(basename "$real")" \
         --argjson lockfile "$([ -f "$real/devenv.lock" ] && echo true || echo false)" \
-        --argjson dev "$(stat -c %d "$real")" \
+        --arg ident "$(stat -c '%d:%i' -- "$real")" \
         --argjson mtime "$(stat -c %Y "$real")" \
         '{path: $path, name: $name, allowed: true, lockfile: $lockfile, template: "custom",
-          hasProcesses: true, dev: $dev, mtime: $mtime, from, profiles}' <<<"$b"
+          hasProcesses: true, ident: $ident, mtime: $mtime, from, profiles}' <<<"$b"
     done <"$tmp/bound" >>"$tmp/rows"
   fi
 
@@ -462,39 +462,64 @@ cmd_status() {
 #
 # .envrc is never removed: this tool never writes one, so no .envrc can be
 # byte-identical to ours, and one somebody wrote is theirs.
+# Everything that must be true of the target. Pure reads, microseconds. Called
+# once up front so a bad request is refused before any subprocess runs, and
+# again as the last statement before anything is deleted -- that second call is
+# the authoritative one. Dynamically scoped: it reads cmd_remove's locals.
+# A refusal from the second verify_target call comes after `devenv revoke` has
+# already run, so it has to say so: the directory is still there, but it is no
+# longer allowed.
+refuse() {
+  [ "${revoked:-0}" = 1 ] &&
+    echo "nixarchy-devenv: $dir was revoked before this refusal; run \`devenv allow\` there if you still want automatic activation." >&2
+  die 2 "$1"
+}
+
+verify_target() {
+  [ "$confirm" = "$dir" ] || refuse "refused: --confirm does not name $dir exactly."
+  local canon
+  canon=$(realpath -e -- "$dir" 2>/dev/null) || refuse "refused: $dir does not exist."
+  [ "$canon" = "$dir" ] || refuse "refused: $dir is not a canonical path (it resolves to $canon)."
+  [ "$dir" != / ] || refuse "refused: /."
+  local home
+  home=$(realpath -e -- "$HOME" 2>/dev/null || echo "$HOME")
+  [ "$dir" != "$home" ] || refuse "refused: your home directory."
+  case "$home/" in "$dir"/*) refuse "refused: $dir contains your home directory." ;; esac
+  local r rc
+  for r in "${roots[@]}"; do
+    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) ||
+      refuse "refused: the project root $r cannot be resolved; it may be on a drive that is not mounted. Removal needs every root to resolve."
+    case "$rc/" in "$dir"/*) refuse "refused: $dir is a project root, or contains one ($rc)." ;; esac
+  done
+  [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || refuse "refused: $dir has no devenv.nix of its own."
+  [ "$(stat -c '%d:%i' -- "$dir")" = "$ident" ] ||
+    refuse "refused: $dir is not the directory that was listed; it has been replaced since. Refresh and try again."
+}
+
 cmd_remove() {
-  local tier="" confirm="" dev="" dir="" roots=()
+  local tier="" confirm="" ident="" dir="" roots=() revoked=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --tier) tier=${2:-}; shift ;;
       --confirm) confirm=${2:-}; shift ;;
-      --dev) dev=${2:-}; shift ;;
-      --root) roots+=("${2:-}"); shift ;;
+      --ident) ident=${2:-}; shift ;;
+      # A plugin older than this command. Say so rather than "unknown option".
+      --dev) die 1 "--dev is gone; the plugin calling this is older than the command. Update the plugin." ;;
+      --root) [ -n "${2:-}" ] || die 1 "--root needs a directory"; roots+=("$2"); shift ;;
       -*) die 1 "unknown option $1" ;;
       *) [ -z "$dir" ] || die 1 "one directory at a time"; dir=$1 ;;
     esac
     shift
   done
   case "$tier" in files | state | folder) ;; *) die 1 "--tier is files, state or folder" ;; esac
-  [ -n "$dir" ] && [ -n "$confirm" ] && [[ $dev =~ ^[0-9]+$ ]] ||
-    die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --dev N [--root DIR]... DIR"
+  [ -z "$ident" ] || [[ $ident =~ ^[0-9]+:[0-9]+$ ]] ||
+    die 1 "--ident is DEV:INO, as \`list --json\` reports it."
+  [ -n "$dir" ] && [ -n "$confirm" ] && [ -n "$ident" ] ||
+    die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --ident DEV:INO --root DIR [--root DIR]... DIR"
+  [ ${#roots[@]} -gt 0 ] ||
+    die 1 "remove needs at least one --root: with none there is nothing to protect the project roots."
 
-  [ "$confirm" = "$dir" ] || die 2 "refused: --confirm does not name $dir exactly."
-  local canon
-  canon=$(realpath -e -- "$dir" 2>/dev/null) || die 2 "refused: $dir does not exist."
-  [ "$canon" = "$dir" ] || die 2 "refused: $dir is not a canonical path (it resolves to $canon)."
-  [ "$dir" != / ] || die 2 "refused: /."
-  local home
-  home=$(realpath -e -- "$HOME" 2>/dev/null || echo "$HOME")
-  [ "$dir" != "$home" ] || die 2 "refused: your home directory."
-  case "$home/" in "$dir"/*) die 2 "refused: $dir contains your home directory." ;; esac
-  local r rc
-  for r in "${roots[@]}"; do
-    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) || continue
-    case "$rc/" in "$dir"/*) die 2 "refused: $dir is a project root, or contains one ($rc)." ;; esac
-  done
-  [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || die 2 "refused: $dir has no devenv.nix of its own."
-  [ "$(stat -c %d -- "$dir")" = "$dev" ] || die 2 "refused: $dir is not on the device it was listed on; refresh and try again."
+  verify_target
 
   # Processes: stopped, or no devenv at all. Unknown is a no -- a database
   # losing its files under a running server is the failure this prevents.
@@ -508,7 +533,17 @@ cmd_remove() {
 
   if command -v devenv >/dev/null 2>&1; then
     (cd "$dir" && devenv revoke) >/dev/null 2>&1 || echo "nixarchy-devenv: devenv revoke failed; continuing" >&2
+    revoked=1
   fi
+
+  # The authoritative check. Everything above it -- a devenv processes list
+  # under a ten-second timeout, then a devenv revoke -- is subprocess time in
+  # which the directory could have been renamed away and another moved into
+  # its place. These are pure reads costing microseconds, so they run again
+  # here. Nothing may be inserted between this line and the delete below; the
+  # residue is the microsecond between them, which only holding an open fd on
+  # the directory could close.
+  verify_target
 
   if [ "$tier" = folder ]; then
     rm -rf -- "$dir" || die 4 "could not remove $dir."
