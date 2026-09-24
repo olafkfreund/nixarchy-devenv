@@ -374,6 +374,7 @@ FocusScope {
               tooltipText: "Keyboard shortcuts  (?)"
               foreground: root.foreground
               fontFamily: root.fontFamily
+              fontSize: root.fontIcon
               onClicked: root.helpOpen = !root.helpOpen
             }
 
@@ -382,6 +383,7 @@ FocusScope {
               tooltipText: "Refresh  (u)"
               foreground: root.foreground
               fontFamily: root.fontFamily
+              fontSize: root.fontIcon
               onClicked: DevenvState.refresh()
 
               RotationAnimation on rotation {
@@ -400,6 +402,7 @@ FocusScope {
               tooltipText: "New project  (c)"
               foreground: root.foreground
               fontFamily: root.fontFamily
+              fontSize: root.fontIcon
               onClicked: root.openForm()
             }
           }
@@ -484,6 +487,7 @@ FocusScope {
           fontRow: root.fontRow
           fontLabel: root.fontLabel
           fontGlyph: root.fontGlyph
+          fontIcon: root.fontIcon
 
           onActionRequested: function(path, verb) { root.dispatch(path, verb) }
           onCursorRequested: function(key) { root.setCursorKey(key) }
@@ -580,6 +584,7 @@ FocusScope {
             tooltipText: "Dismiss"
             foreground: root.foreground
             fontFamily: root.fontFamily
+            fontSize: root.fontIcon
             fontSize: root.fontGlyph
             size: Style.space(20)
             onClicked: DevenvState.lastError = ""
