@@ -154,6 +154,9 @@ Item {
             id: view
             width: flick.width
             height: implicitHeight
+            // The one place the menu differs from the bar popup: a rung
+            // higher on the shell's ladder, not a factor over it.
+            large: true
             foreground: Color.foreground
             fontFamily: Style.font.family
             onCloseRequested: root.close()

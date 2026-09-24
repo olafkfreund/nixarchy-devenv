@@ -23,6 +23,11 @@ FocusScope {
   property string home: ""
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
+
+  // Set by DevenvView; the defaults are the bar popup's rungs.
+  property int fontRow: Style.font.caption
+  property int fontLabel: Style.font.body
+  property int fontGlyph: Style.font.iconSmall
   readonly property color dim: Qt.darker(foreground, 1.5)
 
   // (form, result): the result is Model.validateForm's, argv included.
@@ -200,7 +205,7 @@ FocusScope {
         textFormat: Text.PlainText
         color: Color.accent
         font.family: root.fontFamily
-        font.pixelSize: Style.font.iconSmall
+        font.pixelSize: root.fontGlyph
       }
 
       Text {
@@ -209,7 +214,7 @@ FocusScope {
         textFormat: Text.PlainText
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.body
+        font.pixelSize: root.fontLabel
         font.bold: true
       }
     }
@@ -297,7 +302,7 @@ FocusScope {
                   color: fieldItem.modelData.kind === "bool" && root.form[fieldItem.modelData.key] === true
                     ? Color.accent : root.dim
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
+                  font.pixelSize: root.fontLabel
                 }
 
                 Text {
@@ -312,7 +317,7 @@ FocusScope {
                   textFormat: Text.PlainText
                   color: root.foreground
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
+                  font.pixelSize: root.fontRow
                   elide: Text.ElideRight
                   width: Math.min(implicitWidth, body.width - Style.space(24))
                 }
@@ -325,7 +330,7 @@ FocusScope {
                 textFormat: Text.PlainText
                 color: fieldItem.isCurrent ? root.foreground : root.dim
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                font.pixelSize: root.fontRow
               }
 
               TextField {
@@ -334,7 +339,7 @@ FocusScope {
                 width: parent.width
                 foreground: root.foreground
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                font.pixelSize: root.fontRow
                 placeholderText: fieldItem.modelData.hint || ""
                 // Bound, never assigned: the delegates outlive a close, and a
                 // one-time copy would leave last time's typing on screen while
@@ -365,7 +370,7 @@ FocusScope {
                     textFormat: Text.PlainText
                     color: index === root.templateIndex ? Color.accent : root.dim
                     font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: root.fontRow
                     elide: Text.ElideRight
 
                     MouseArea {
@@ -394,7 +399,7 @@ FocusScope {
                     textFormat: Text.PlainText
                     color: index === root.providerIndex ? Color.accent : root.dim
                     font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: root.fontRow
 
                     MouseArea {
                       anchors.fill: parent
@@ -417,7 +422,7 @@ FocusScope {
                 textFormat: Text.PlainText
                 color: fieldItem.error !== "" ? Color.urgent : root.dim
                 font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
+                font.pixelSize: root.fontRow
                 wrapMode: Text.WordWrap
               }
             }
@@ -433,7 +438,7 @@ FocusScope {
       textFormat: Text.PlainText
       color: root.dim
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: root.fontRow
     }
 
     Text {
@@ -452,7 +457,7 @@ FocusScope {
       color: root.foreground
       opacity: 0.65
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: root.fontRow
     }
   }
 }
