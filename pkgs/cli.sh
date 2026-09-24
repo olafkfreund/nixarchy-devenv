@@ -462,6 +462,29 @@ cmd_status() {
 #
 # .envrc is never removed: this tool never writes one, so no .envrc can be
 # byte-identical to ours, and one somebody wrote is theirs.
+# Everything that must be true of the target. Pure reads, microseconds. Called
+# once up front so a bad request is refused before any subprocess runs, and
+# again as the last statement before anything is deleted -- that second call is
+# the authoritative one. Dynamically scoped: it reads cmd_remove's locals.
+verify_target() {
+  [ "$confirm" = "$dir" ] || die 2 "refused: --confirm does not name $dir exactly."
+  local canon
+  canon=$(realpath -e -- "$dir" 2>/dev/null) || die 2 "refused: $dir does not exist."
+  [ "$canon" = "$dir" ] || die 2 "refused: $dir is not a canonical path (it resolves to $canon)."
+  [ "$dir" != / ] || die 2 "refused: /."
+  local home
+  home=$(realpath -e -- "$HOME" 2>/dev/null || echo "$HOME")
+  [ "$dir" != "$home" ] || die 2 "refused: your home directory."
+  case "$home/" in "$dir"/*) die 2 "refused: $dir contains your home directory." ;; esac
+  local r rc
+  for r in "${roots[@]}"; do
+    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) || continue
+    case "$rc/" in "$dir"/*) die 2 "refused: $dir is a project root, or contains one ($rc)." ;; esac
+  done
+  [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || die 2 "refused: $dir has no devenv.nix of its own."
+  [ "$(stat -c %d -- "$dir")" = "$dev" ] || die 2 "refused: $dir is not on the device it was listed on; refresh and try again."
+}
+
 cmd_remove() {
   local tier="" confirm="" dev="" dir="" roots=()
   while [ $# -gt 0 ]; do
@@ -479,22 +502,7 @@ cmd_remove() {
   [ -n "$dir" ] && [ -n "$confirm" ] && [[ $dev =~ ^[0-9]+$ ]] ||
     die 1 "usage: nixarchy-devenv remove --tier files|state|folder --confirm DIR --dev N [--root DIR]... DIR"
 
-  [ "$confirm" = "$dir" ] || die 2 "refused: --confirm does not name $dir exactly."
-  local canon
-  canon=$(realpath -e -- "$dir" 2>/dev/null) || die 2 "refused: $dir does not exist."
-  [ "$canon" = "$dir" ] || die 2 "refused: $dir is not a canonical path (it resolves to $canon)."
-  [ "$dir" != / ] || die 2 "refused: /."
-  local home
-  home=$(realpath -e -- "$HOME" 2>/dev/null || echo "$HOME")
-  [ "$dir" != "$home" ] || die 2 "refused: your home directory."
-  case "$home/" in "$dir"/*) die 2 "refused: $dir contains your home directory." ;; esac
-  local r rc
-  for r in "${roots[@]}"; do
-    rc=$(realpath -e -- "$(expand_root "$r")" 2>/dev/null) || continue
-    case "$rc/" in "$dir"/*) die 2 "refused: $dir is a project root, or contains one ($rc)." ;; esac
-  done
-  [ -f "$dir/devenv.nix" ] && [ ! -L "$dir/devenv.nix" ] || die 2 "refused: $dir has no devenv.nix of its own."
-  [ "$(stat -c %d -- "$dir")" = "$dev" ] || die 2 "refused: $dir is not on the device it was listed on; refresh and try again."
+  verify_target
 
   # Processes: stopped, or no devenv at all. Unknown is a no -- a database
   # losing its files under a running server is the failure this prevents.
