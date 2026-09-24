@@ -387,7 +387,7 @@ Singleton {
       root.pendingVerb = ""
       root.pendingName = ""
       // Process state may have changed; ask again for the selected row.
-      if (verb.indexOf("processes") !== -1) { root.status = null; statusDebounce.restart() }
+      if (verb.indexOf("processes") !== -1) { root.status = null; if (root.active || root.background) statusDebounce.restart() }
       if (root.active || root.background) root.refresh()
     }
   }
@@ -399,7 +399,7 @@ Singleton {
     onExited: function(code) {
       if (code !== 0) root.lastError = Model.errorText(downErr.text) || ("stopping " + name + " failed (exit " + code + ")")
       root.status = null
-      statusDebounce.restart()
+      if (root.active || root.background) statusDebounce.restart()
     }
   }
 
