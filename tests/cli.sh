@@ -458,6 +458,15 @@ expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVEN
 untouched "$p" "unknown"
 expect 2 "remove: a crashed manager" -- with_devenv env STUB_PROCESSES=crashed "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "crashed manager"
+grep -q 'socket is still there' "$root/err" ||
+  bad "remove: a crashed manager says why it cannot tell"
+grep -q 'devenv up -d' "$root/err" ||
+  bad "remove: a crashed manager says what clears it"
+# The ordinary unknown -- a timeout -- has no stale socket, so it must not
+# offer a remedy that would not help.
+expect 2 "remove: a hang says nothing about sockets" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
+grep -q 'socket is still there' "$root/err" &&
+  bad "remove: a timeout must not claim a stale socket"
 
 # #11: the checks used to run once, up front, and were then separated from the
 # delete by a devenv processes list under a ten-second timeout and a devenv
