@@ -27,6 +27,37 @@ test("a generator that always runs git init never gets --no-git", () => {
   ok(r.argv.indexOf("--no-git") === -1)
 })
 
+// The mirror of the git rule above. honours_allow was parsed and plumbed all
+// the way from data/templates.nix into the template model, and then never read
+// by anything -- so a generator declaring it does not allow would still have
+// been handed --allow.
+test("a generator that never allows automatic activation is not sent --allow", () => {
+  const INDEX = JSON.stringify([
+    { id: "noallow", kind: "generator", group: "Cloud", label: "No allow", note: "n",
+      flake: "github:o/n", rev: "def", providers: ["aws"], honours_git: true, honours_allow: false }
+  ])
+  const ts = Model.parseTemplates(INDEX)
+  eq(ts[0].honoursAllow, false)
+
+  const r = Model.validateForm({ template: "noallow", providers: ["aws"], name: "app",
+    parent: "~/Source", git: true, allow: true }, ts, HOME)
+  eq(r.ok, true)
+  ok(r.argv.indexOf("--allow") === -1)
+
+  // and the form says so, rather than offering a toggle that does nothing
+  const allow = Model.formFields(ts, "noallow").filter(f => f.key === "allow")[0]
+  eq(allow.locked, true)
+  ok(/never allows/.test(allow.hint))
+})
+
+// The ordinary case is unchanged: a generator that does honour it still gets
+// the flag when the toggle is on.
+test("a generator that honours allow still gets --allow", () => {
+  const r = v({ template: "cloud", providers: ["aws"], allow: true })
+  eq(r.ok, true)
+  ok(r.argv.indexOf("--allow") !== -1)
+})
+
 test("providers are ignored for presets", () => {
   eq(v({ providers: ["aws"] }).argv.slice(-1), ["python"])
 })

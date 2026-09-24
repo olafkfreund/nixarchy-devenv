@@ -14,6 +14,35 @@ test("parseList keeps well-formed rows and types every field", () => {
     template: "python", hasProcesses: false, ident: "2049:1234", mtime: 1000, from: "", profiles: [] })
 })
 
+// A directory on disk can be named anything; only names typed into the form go
+// through the NAME allowlist. A discovered name is shown in the row and then
+// typed back to confirm the folder tier, so a bidi override in it would let the
+// row render as something other than what it is.
+test("parseList strips bidi controls from a discovered name", () => {
+  const RLO = "\u202E", PDF = "\u202C", LRI = "\u2066", PDI = "\u2069"
+  const out = Model.parseList(list([listRow({ path: "/p/x", name: "safe" + RLO + "gpj.exe" + PDF })]))
+  eq(out.rows[0].name, "safegpj.exe")
+  const b = Model.parseList(list([listRow({ path: "/p/y", name: LRI + "a" + PDI + "b" })]))
+  eq(/[\u202A-\u202E\u2066-\u2069]/.test(b.rows[0].name), false)
+})
+
+// Stripping the controls must not become "ASCII only": real project names in
+// other scripts have to survive intact.
+test("sanitize keeps legitimate non-ASCII names", () => {
+  eq(Model.sanitize("проект", 80), "проект")
+  eq(Model.sanitize("プロジェクト", 80), "プロジェクト")
+  eq(Model.sanitize("café-app", 80), "café-app")
+})
+
+// hasControlChars is deliberately NOT widened: it gates isAbsPath, which gates
+// every argv builder. Widening it would leave such a row visible but with every
+// action silently returning null.
+test("hasControlChars and isAbsPath are unchanged by the bidi strip", () => {
+  eq(Model.hasControlChars("a\u202Eb"), false)
+  eq(Model.isAbsPath("/p/a\u202Eb"), true)
+  eq(Model.hasControlChars("a\u0000b"), true)
+})
+
 test("parseList drops rows without a safe absolute path", () => {
   const bad = ["", "relative", "/a/../b", "/a/./b", "/a" + NL + "b", null, 42, "/a//b"]
   const out = Model.parseList(list(bad.map(p => listRow({ path: p }))))

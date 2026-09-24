@@ -98,7 +98,11 @@ function hasControlChars(value) {
 
 function sanitize(value, maxLength) {
   var limit = maxLength > 0 ? maxLength : MAX_FIELD
-  var out = str(value).replace(/[\x00-\x1f\x7f-\x9f]/g, "").trim()
+  // Bidi controls too: a name is shown to you and then typed back to confirm
+  // the folder tier, so a name that can render as something other than what
+  // it is defeats that check. hasControlChars stays as it is -- it gates
+  // isAbsPath, and a path has to stay byte-exact to remain actionable.
+  var out = str(value).replace(/[\x00-\x1f\x7f-\x9f\u202A-\u202E\u2066-\u2069]/g, "").trim()
   if (out.length > limit) out = out.substring(0, limit - 1) + "…"
   return out
 }
@@ -702,13 +706,18 @@ function validateForm(form, templates, home) {
 
   var git = f.git !== false
   if (t && !t.honoursGit) git = true
+  // A generator that declares it does not honour the allow toggle must not be
+  // sent --allow anyway: the catalogue's declaration is the user's consent
+  // boundary, not a hint.
+  var allow = f.allow === true
+  if (t && !t.honoursAllow) allow = false
 
   var ok = true
   for (var k in errors) ok = false
   if (!ok) return { ok: false, errors: errors, argv: null }
 
   var argv = [CLI, "new"]
-  if (f.allow === true) argv.push("--allow")
+  if (allow) argv.push("--allow")
   if (!git) argv.push("--no-git")
   argv.push("--parent", parent, "--name", name, t.id)
   return { ok: true, errors: {}, argv: argv.concat(providers), path: parent + "/" + name }
@@ -740,7 +749,9 @@ function formFields(templates, templateId) {
     hint: t && !t.honoursGit ? "This template always runs git init" : "A new repository, unless it is already inside one",
     locked: !!(t && !t.honoursGit) })
   out.push({ key: "allow", kind: "bool", label: "Allow automatic activation",
-    hint: "Runs devenv allow: the environment activates when you cd in. Off: use devenv shell." })
+    hint: t && !t.honoursAllow ? "This template never allows automatic activation"
+      : "Runs devenv allow: the environment activates when you cd in. Off: use devenv shell.",
+    locked: !!(t && !t.honoursAllow) })
   return out
 }
 

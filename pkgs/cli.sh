@@ -220,6 +220,13 @@ cmd_init() {
       if [ "$git" = 0 ] && [ "$(template_field "$tpl" honours_git)" = false ]; then
         die 1 "'$tpl' always runs git init, so --no-git cannot be honoured."
       fi
+      # Mirrors the line above: a generator that declares it does not honour
+      # the allow toggle must not be handed --allow. The catalogue's
+      # declaration is the consent boundary, so this refuses rather than
+      # silently dropping the flag.
+      if [ "$allow" = 1 ] && [ "$(template_field "$tpl" honours_allow)" = false ]; then
+        die 1 "'$tpl' never allows automatic activation, so --allow cannot be honoured."
+      fi
       need nix
       nix --extra-experimental-features 'nix-command flakes' run "$(template_field "$tpl" flake)/$(template_field "$tpl" rev)" -- "$@" ||
         die 4 "the '$tpl' generator failed."
