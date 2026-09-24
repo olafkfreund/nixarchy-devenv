@@ -27,6 +27,11 @@ Item {
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
 
+  // Set by DevenvView; the defaults are the bar popup's rungs.
+  property int fontRow: Style.font.caption
+  property int fontLabel: Style.font.body
+  property int fontGlyph: Style.font.iconSmall
+
   readonly property color dim: Qt.darker(foreground, 1.5)
   readonly property int count: rowModel.count
 
@@ -175,7 +180,7 @@ Item {
           textFormat: Text.PlainText
           color: root.foreground
           font.family: root.fontFamily
-          font.pixelSize: Style.font.body
+          font.pixelSize: root.fontLabel
           font.bold: rowSurface.running
           elide: Text.ElideRight
         }
@@ -188,7 +193,7 @@ Item {
           visible: text !== ""
           color: root.dim
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: root.fontRow
           elide: Text.ElideRight
         }
 
@@ -200,7 +205,7 @@ Item {
           textFormat: Text.PlainText
           color: rowSurface.rowPending || rowSurface.running ? Color.accent : root.dim
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: root.fontRow
           elide: Text.ElideRight
         }
       }
@@ -225,7 +230,7 @@ Item {
             foreground: root.foreground
             hoverColor: modelData.danger ? Color.urgent : root.foreground
             fontFamily: root.fontFamily
-            fontSize: Style.font.iconSmall
+            fontSize: root.fontGlyph
             size: Style.space(22)
             onClicked: root.actionRequested(rowSurface.row.path, modelData.verb)
           }

@@ -17,6 +17,11 @@ FocusScope {
 
   property color foreground: Color.foreground
   property string fontFamily: Style.font.family
+
+  // Set by DevenvView; the defaults are the bar popup's rungs.
+  property int fontRow: Style.font.caption
+  property int fontLabel: Style.font.body
+  property int fontGlyph: Style.font.iconSmall
   readonly property color dim: Qt.darker(foreground, 1.5)
 
   property bool follow: true
@@ -68,7 +73,7 @@ FocusScope {
         textFormat: Text.PlainText
         color: root.running ? Color.accent : (root.exitCode > 0 ? Color.urgent : root.dim)
         font.family: root.fontFamily
-        font.pixelSize: Style.font.iconSmall
+        font.pixelSize: root.fontGlyph
       }
 
       Text {
@@ -78,7 +83,7 @@ FocusScope {
         textFormat: Text.PlainText
         color: root.foreground
         font.family: root.fontFamily
-        font.pixelSize: Style.font.body
+        font.pixelSize: root.fontLabel
         elide: Text.ElideRight
       }
 
@@ -88,7 +93,7 @@ FocusScope {
         textFormat: Text.PlainText
         color: root.running ? Color.accent : (root.exitCode > 0 ? Color.urgent : root.dim)
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: root.fontRow
       }
     }
 
@@ -111,7 +116,7 @@ FocusScope {
         wrapMode: Text.WrapAnywhere
         color: String(modelData).indexOf("── exit") === 0 ? (root.exitCode > 0 ? Color.urgent : Color.accent) : root.dim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: root.fontRow
       }
     }
 
@@ -124,7 +129,7 @@ FocusScope {
       color: root.foreground
       opacity: 0.65
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: root.fontRow
     }
   }
 }
