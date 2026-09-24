@@ -5,6 +5,7 @@
 echo "$PWD :: $*" >>"$STUB_LOG"
 case "$1" in
   init)
+    if [ "${STUB_INIT_FAIL:-}" = 1 ]; then echo "stub devenv: init failed" >&2; exit 1; fi
     cat >devenv.nix <<'NIX'
 { pkgs, lib, config, inputs, ... }:
 
@@ -61,5 +62,8 @@ YAML
       fail) echo "error: boom" >&2; exit 1 ;;
     esac
     ;;
-  allow | revoke | version) ;;
+  revoke)
+    if [ "${STUB_REVOKE_FAIL:-}" = 1 ]; then echo "stub devenv: revoke failed" >&2; exit 1; fi
+    ;;
+  allow | version) ;;
 esac
