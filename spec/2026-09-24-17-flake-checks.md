@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 17
 intent: intent/2026-09-24-17-flake-checks.md
 ---
