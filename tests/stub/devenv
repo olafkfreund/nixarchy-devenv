@@ -43,14 +43,22 @@ YAML
     ;;
   processes)
     case "${STUB_PROCESSES:-stopped}" in
-      # The two answers devenv 2.3.1 gives, measured: a table with exit 0,
-      # or this message with exit 1.
+      # The three answers devenv 2.3.1 gives, measured against a real one: a
+      # table with exit 0; "No process manager is running" when it was shut
+      # down cleanly; or a connection-refused error when the manager died
+      # without cleaning up, leaving its socket behind.
       # Run by a program rather than a terminal, devenv also prints its
       # progress on stderr; only the rows with restarts: are processes.
       running) printf '• Validating lock\n✓ Validating lock in 15ms\n' >&2; printf 'web                            ready restarts: 0\ndb                             running restarts: 1\n' ;;
       noise) printf '• Validating lock\n' >&2 ;;
       stopped) echo "  x No process manager is running. Start processes first with \`devenv up -d\`" >&2; exit 1 ;;
       hang) sleep 30 ;;
+      # crashed: the manager died without shutting down -- a crash, an OOM
+      # kill, a kill -9 -- and left its socket behind. Measured from a real
+      # devenv 2.3.1 after SIGKILLing the manager. It says nothing about a
+      # process manager, so it must not read as stopped: we genuinely
+      # cannot tell what is running, and unknown refuses removal.
+      crashed) printf '  \xc3\x97 Failed to connect to native manager at /run/user/1000/devenv-67bca67/processes/native.sock\n   \xe2\x94\x80\xe2\x96\xb6 Connection refused (os error 111)\n' >&2; exit 1 ;;
       # slow: the stopped answer, three seconds late. The window between the
       # last check and the delete is only observable when the status call is
       # slow AND permissive; hang is slow but answers unknown, which refuses
