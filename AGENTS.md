@@ -274,10 +274,11 @@ issue number.
 
 ## Known follow-ups
 
-- nixarchy integration, default-on (olafkfreund/nixarchy#802). This has its own
-  intent, spec and plan in that repo. It removes nixarchy's leaky
-  `devenv-presets` runner.
-- Android as a template (it needs a `devenv.yaml` capability for the unfree SDK).
 - Rich project templates (AGENTS.md, skills, MCP) for non-cloud stacks, in the style
   of cloud-projects-templates.
-- Environments bound with `devenv --from` (no local `devenv.nix`).
+
+Three items left this list at 1.0, all shipped: nixarchy integration
+(olafkfreund/nixarchy#802, closed), Android as a template (it has its
+`devenv.yaml` unfree capability and passes `templates-check`), and environments
+bound with `devenv --from`. They had stayed here after landing, which is its own
+small lesson: a roadmap nobody prunes starts describing the past.
