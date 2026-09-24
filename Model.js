@@ -98,7 +98,11 @@ function hasControlChars(value) {
 
 function sanitize(value, maxLength) {
   var limit = maxLength > 0 ? maxLength : MAX_FIELD
-  var out = str(value).replace(/[\x00-\x1f\x7f-\x9f]/g, "").trim()
+  // Bidi controls too: a name is shown to you and then typed back to confirm
+  // the folder tier, so a name that can render as something other than what
+  // it is defeats that check. hasControlChars stays as it is -- it gates
+  // isAbsPath, and a path has to stay byte-exact to remain actionable.
+  var out = str(value).replace(/[\x00-\x1f\x7f-\x9f\u202A-\u202E\u2066-\u2069]/g, "").trim()
   if (out.length > limit) out = out.substring(0, limit - 1) + "…"
   return out
 }
