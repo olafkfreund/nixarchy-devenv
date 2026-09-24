@@ -12,8 +12,9 @@ import "Model.js" as Model
 // arrows, Enter and Esc mean the same thing everywhere.
 //
 // No Popup anywhere: the template and provider pickers are inline lists under
-// their row. A Popup is reparented to the overlay and would ignore the menu's
-// scale.
+// their row. A Popup is reparented to the window overlay, so it escapes the
+// menu's card -- it would draw outside the surface, ignore the card's clip and
+// its scrolling, and take the keyboard from the panel that holds it.
 FocusScope {
   id: root
 
