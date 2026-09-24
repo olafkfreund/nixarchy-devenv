@@ -80,16 +80,19 @@ jq -e --argjson n "$((builtin + 1))" 'length == $n and (map(select(.id=="mine"))
 grep -q "Bad" "$root/err" && grep -q "python" "$root/err" && grep -q "broken" "$root/err" ||
   bad "personal: each skip is warned about"
 
-# Valid JSON, wrong version. jq's select() on a non-match exits 0 with no
-# output, so the "not version 1" warning in personal_json can never fire --
-# the entry is dropped in silence. This pins the behaviour as it is; the dead
-# warning is recorded as a Risk in the spec, not fixed here.
+# Valid JSON, wrong version. This used to be dropped in silence: the filter's
+# select() produces no output on a non-match and still exits 0, so the warning
+# could never fire while its two neighbouring mistakes explained themselves.
 mkdir -p "$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver"
 echo '{ }' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver/devenv.nix"
 echo '{"version":2,"label":"Two"}' >"$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver/template.json"
 expect 0 "templates: a personal template that is not version 1" -- "$cli" templates --json
 jq -e 'map(select(.id=="wrongver")) == []' "$root/out" >/dev/null ||
   bad "personal: a wrong version is dropped"
+# One assertion, and it has to name both: the "not version 1" text alone also
+# matches the malformed-JSON fixture, so grepping for it proves nothing here.
+grep -q "wrongver.*not version 1" "$root/err" ||
+  bad "personal: a wrong version says so by name, rather than vanishing"
 rm -rf "$XDG_CONFIG_HOME/nixarchy-devenv/templates/wrongver"
 
 # ---- dispatch -----------------------------------------------------------------
