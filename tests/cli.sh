@@ -309,6 +309,17 @@ expect 0 "status: progress only, exit 0" -- with_devenv env STUB_PROCESSES=noise
 jq -e '.state == "unknown"' "$root/out" >/dev/null || bad "status: exit 0 with no process rows is unknown"
 expect 0 "status stopped" -- with_devenv env STUB_PROCESSES=stopped "$cli" status --json "$S"
 jq -e '.state == "stopped"' "$root/out" >/dev/null || bad "status: stopped"
+# devenv gives two different "not running" answers, and only one of them means
+# stopped. A clean shutdown says so; a manager that died without cleaning up
+# leaves its socket behind and the connection is refused, which says nothing
+# about what is running -- so it has to be unknown, and unknown refuses removal.
+expect 0 "status: a crashed manager is unknown, not stopped" -- \
+  with_devenv env STUB_PROCESSES=crashed "$cli" status --json "$S"
+jq -e '.state == "unknown" and (.processes == [])' "$root/out" >/dev/null ||
+  bad "status: a refused connection is unknown, never stopped"
+jq -e '.detail | test("Connection refused")' "$root/out" >/dev/null ||
+  bad "status: the reason reaches the caller"
+
 expect 0 "status: a row with no restart count" -- with_devenv env STUB_PROCESSES=malformed "$cli" status --json "$S"
 jq -e '.state == "unknown" and (.processes == [])' "$root/out" >/dev/null ||
   bad "status: a line carrying restarts: with no number is unknown, never running"
@@ -445,6 +456,8 @@ expect 2 "remove: running" -- with_devenv env STUB_PROCESSES=running "$cli" remo
 untouched "$p" "running"
 expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "unknown"
+expect 2 "remove: a crashed manager" -- with_devenv env STUB_PROCESSES=crashed "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
+untouched "$p" "crashed manager"
 
 # #11: the checks used to run once, up front, and were then separated from the
 # delete by a devenv processes list under a ten-second timeout and a devenv
