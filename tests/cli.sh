@@ -337,6 +337,40 @@ untouched "$p" "running"
 expect 2 "remove: unknown" -- with_devenv env STUB_PROCESSES=hang NIXARCHY_DEVENV_STATUS_TIMEOUT=1 "$cli" remove --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 untouched "$p" "unknown"
 
+# #11: the checks used to run once, up front, and were then separated from the
+# delete by a devenv processes list under a ten-second timeout and a devenv
+# revoke. These two swap the target inside that window. The stub sleeps three
+# seconds; the swap lands after one. Neither asserts on timing -- only that the
+# removal refused and the tree is intact.
+W=$(fresh)
+wp=$(mkproj winA); wq=$(mkproj winB); wi=$(ident_of "$wp")
+with_devenv env STUB_PROCESSES=slow "$cli" remove --tier folder --confirm "$wp" \
+  --ident "$wi" --root "$R/root" "$wp" >"$root/out" 2>"$root/err" &
+wpid=$!
+sleep 1; rm -rf "$wp"; mv "$wq" "$wp"
+wait "$wpid" && wrc=0 || wrc=$?
+[ "$wrc" = 2 ] || bad "remove: swapped inside the window: exit $wrc, wanted 2"
+pass=$((pass + 1))
+[ -f "$wp/devenv.nix" ] || bad "remove: swapped inside the window: nothing may be deleted"
+grep -q 'devenv allow' "$root/err" || bad "remove: swapped inside the window: the revoke is announced"
+grep -q "$wp :: revoke" "$STUB_LOG" || bad "remove: swapped inside the window: revoke ran"
+
+# The same window, but an ancestor is replaced rather than the target itself.
+# This is the canonical-path check being re-run, not the identity check.
+ap=$(mkproj ancA)
+mkdir -p "$W/other/ancA" && echo '{ }' >"$W/other/ancA/devenv.nix"
+ai=$(ident_of "$ap")
+with_devenv env STUB_PROCESSES=slow "$cli" remove --tier folder --confirm "$ap" \
+  --ident "$ai" --root "$R/root" "$ap" >"$root/out" 2>"$root/err" &
+apid=$!
+sleep 1; mv "$R/root" "$R/root.real"; ln -s "$W/other" "$R/root"
+wait "$apid" && arc=0 || arc=$?
+rm -f "$R/root"; mv "$R/root.real" "$R/root"
+[ "$arc" = 2 ] || bad "remove: an ancestor swapped for a symlink: exit $arc, wanted 2"
+pass=$((pass + 1))
+[ -f "$ap/devenv.nix" ] || bad "remove: an ancestor swapped: the target may not be deleted"
+[ -f "$W/other/ancA/devenv.nix" ] || bad "remove: an ancestor swapped: the other tree may not be touched"
+
 : >"$STUB_LOG"
 expect 0 "remove: files" -- rm_cli --tier files --confirm "$p" --ident "$d" --root "$R/root" "$p"
 [ ! -e "$p/devenv.nix" ] && [ ! -e "$p/devenv.yaml" ] && [ ! -e "$p/devenv.lock" ] && [ ! -e "$p/.devenv-template" ] || bad "files: devenv files gone"

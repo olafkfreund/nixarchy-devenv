@@ -45,6 +45,11 @@ YAML
       noise) printf '• Validating lock\n' >&2 ;;
       stopped) echo "  x No process manager is running. Start processes first with \`devenv up -d\`" >&2; exit 1 ;;
       hang) sleep 30 ;;
+      # slow: the stopped answer, three seconds late. The window between the
+      # last check and the delete is only observable when the status call is
+      # slow AND permissive; hang is slow but answers unknown, which refuses
+      # on its own and so proves nothing about the window.
+      slow) sleep 3; echo "  x No process manager is running. Start processes first with \`devenv up -d\`" >&2; exit 1 ;;
       fail) echo "error: boom" >&2; exit 1 ;;
     esac
     ;;
