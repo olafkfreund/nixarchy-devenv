@@ -22,7 +22,7 @@ decisions remain):
   already change `cursorKey` and trigger `onCursorKeyChanged` →
   `requestStatus()`, which re-fetches status independently through its own
   debounce. There is nothing for an owed-flag to fix.
-- `statusProcess.onExited`'s own restart (line 360, the stale-answer retry)
+- `statusProcess.onExited`'s own restart (line 361, the stale-answer retry)
   is untouched. It cannot fire while both surfaces are closed: the only way
   `root.statusPath` changes is `onCursorKeyChanged`, which requires a live
   cursor, which requires an open surface. It is unreachable in the closed
@@ -38,7 +38,14 @@ decisions remain):
 
 ## Steps
 
-1. `DevenvState.qml:375`, `actionProcess.onExited` — change
+Re-verified against main at `e254c82` (post-#8, which touched this same file
+but only removed unread state and dead handlers — it did not add a shared
+guard helper and did not touch either of these two call sites; both
+unconditional restarts are still present, unchanged except for a one-line
+shift from #8's earlier deletions). No rebase of the fix itself is needed,
+only of the line numbers below.
+
+1. `DevenvState.qml:376`, `actionProcess.onExited` — change
 
    ```qml
    if (verb.indexOf("processes") !== -1) { root.status = null; statusDebounce.restart() }
@@ -51,10 +58,10 @@ decisions remain):
    ```
 
    → verify by reading the line back: the guard is character-for-character
-   the one on the very next line, `376` (`if (root.active || root.background)
+   the one on the very next line, `377` (`if (root.active || root.background)
    root.refresh()`).
 
-2. `DevenvState.qml:386-387`, `downProcess.onExited` — change
+2. `DevenvState.qml:387-388`, `downProcess.onExited` — change
 
    ```qml
        root.status = null
@@ -69,25 +76,30 @@ decisions remain):
    ```
 
    → verify by reading the line back against the same guard used in step 1
-   and at line 157 (`onRootsChanged: if (root.active || root.background)
+   and at line 156 (`onRootsChanged: if (root.active || root.background)
    refresh()`).
 
-No other file changes. `statusProcess.onExited` (line 360) and
-`streamProcess.onExited` (line 400) are read but not touched.
+No other file changes. `statusProcess.onExited` (line 361) and
+`streamProcess.onExited` (line 401) are read but not touched. #8 introduced
+no shared guard helper or property anywhere in this file — every guarded
+call site (156, 377, 401, and the two new ones) still repeats the same
+inline `if (root.active || root.background)` condition, so this plan's
+"no shared helper" decision needs no revisiting.
 
 ## Tests
 
 Quickshell runtime behaviour (a live `Process` spawned from a QML singleton)
-is not unit-testable from this repo's Node suite: `tests/run.js` exercises
+is not unit-testable from this repo's Node suite: the Model tests exercise
 only `Model.js`, and `DevenvState.qml` is deliberately outside that boundary.
 Verification is live, per AGENTS.md's "Verifying live":
 
 Automated suites that must still pass unchanged (no behaviour of theirs is
-touched by this diff, run to confirm no regression):
+touched by this diff, run to confirm no regression; `tests/run.js` no longer
+exists post-#8 — use the current commands):
 
 ```bash
-node tests/run.js
-bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"
+node --test 'tests/model/*.test.js'            # currently 70 pass
+bash tests/cli.sh "$(nix build .#cli --print-out-paths)/bin/nixarchy-devenv"   # currently 63 passed
 nix flake check
 ```
 
