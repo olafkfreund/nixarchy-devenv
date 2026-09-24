@@ -91,7 +91,24 @@ d=$(mktemp -d) && git clone -q . "$d/p" && rm -rf "$d/p/.git" && omarchy plugin 
    to `nix build .#cli -o <gcroot>` works. Then `omarchy-shell shell
    rescanPlugins` and enable it once: `omarchy plugin enable nixarchy.devenv`.
 2. **Restart the shell** with `omarchy-restart-shell`, then wait until
-   `omarchy-shell shell ping` answers.
+   `omarchy-shell shell ping` answers. A real copy is usually picked up by
+   `rescanPlugins` alone, so try that before restarting someone's desktop.
+
+   **"omarchy-shell is not responding" does not mean the shell is down.** While
+   it reloads plugins its IPC socket stops answering for a few seconds, and in
+   that window `omarchy-shell shell ping`, `omarchy plugin enable` and
+   `omarchy plugin disable` all print that, and `omarchy-restart-shell` prints
+   "Omarchy shell did not become ready after restart" — with the process alive
+   and the bar on screen throughout. Believing it costs the user their session
+   for no reason.
+
+   Ask the process, not the socket:
+   ```bash
+   qs list --all                 # the PID and how long it has been running
+   hyprctl layers -j             # omarchy-bar present means the bar is drawn
+   ```
+   Only if both of those say it is gone has anything actually failed. Wait a few
+   seconds and ping again before concluding anything.
 3. **Check the log for errors.** Get the instance from `qs list --all`, then run
    `qs log -i <instance>`.
 4. **Open each surface:**
