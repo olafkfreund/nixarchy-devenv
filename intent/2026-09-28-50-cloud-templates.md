@@ -1,5 +1,5 @@
 ---
-status: approved
+status: draft
 issue: 50
 author: olafkfreund
 ---
@@ -27,6 +27,12 @@ through the provider's supported local or federated mechanisms. Every template
 is checked with a real devenv before release and is documented in the user
 guide and README.
 
+The generated environment also exposes documented shell helpers for adding,
+editing, and deleting encrypted secrets, plus adding authorized users and
+rekeying the encrypted secrets for the new recipient set. Helpers must keep
+secret values out of command history and logs and leave changes reviewable in
+Git.
+
 ## Affected users and systems
 
 - Users creating projects from the nixarchy-devenv menu or CLI.
@@ -41,6 +47,9 @@ guide and README.
   behind a new form abstraction.
 - Use ordinary devenv option lines and existing template fields where possible.
 - Do not read, generate, or persist credentials, tokens, or secret files.
+- Every template family must provide a documented encrypted-secret path using
+  SOPS and/or agenix, with SecretSpec used where devenv environment-variable
+  contracts are appropriate; secrets remain runtime-only during evaluation.
 - Include common Terraform and Kubernetes tools only when they are useful across
   providers; avoid turning each template into an unbounded tool collection.
 - Follow current official guidance: Terraform formatting and validation, the
@@ -57,3 +66,8 @@ guide and README.
   included too?
 - Should the templates remain presets, or should any provider need a generator
   because it must create starter Terraform files or additional project files?
+- Should the shared encrypted-secret scaffold live in the existing cloud
+  generator repository and be reused by all richer templates, or should this
+  plugin add a smaller common generator of its own?
+- Should the helpers target agenix only, SOPS only, or expose one stable command
+  surface with backend-specific implementations?
