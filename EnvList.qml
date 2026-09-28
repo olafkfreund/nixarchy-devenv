@@ -232,7 +232,6 @@ Item {
             hoverColor: modelData.danger ? Color.urgent : root.foreground
             fontFamily: root.fontFamily
             fontSize: root.fontIcon
-            fontSize: root.fontGlyph
             size: Style.space(22)
             onClicked: root.actionRequested(rowSurface.row.path, modelData.verb)
           }

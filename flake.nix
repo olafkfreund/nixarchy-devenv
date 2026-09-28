@@ -152,7 +152,7 @@
           # The manifest is what the shell validates at load: a typo in it is a
           # plugin that silently never appears.
           plugin = let plugin = self.packages.${system}.plugin; in
-            pkgs.runCommand "nixarchy-devenv-plugin-check" { nativeBuildInputs = [ pkgs.jq ]; } ''
+            pkgs.runCommand "nixarchy-devenv-plugin-check" { nativeBuildInputs = [ pkgs.jq pkgs.python3 ]; } ''
               jq -e '
                 .schemaVersion == 1
                 and .id == "nixarchy.devenv"
@@ -171,6 +171,9 @@
               if [ -n "$(find ${plugin} -mindepth 1 -type l)" ]; then
                 echo "symlink inside the package" >&2; exit 1
               fi
+              # A property set twice in one object makes QML refuse the whole file,
+              # and the bar widget, menu and panel all fail to load (#48).
+              python3 ${./tests/qml-duplicate-props.py} ${plugin}/*.qml
               # A literal colour survives a theme switch and looks wrong.
               if grep -nE '"#[0-9a-fA-F]{3,8}"' ${plugin}/*.qml; then
                 echo "hardcoded colour above; use a Color.* token" >&2; exit 1
