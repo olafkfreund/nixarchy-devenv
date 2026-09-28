@@ -5,7 +5,7 @@ shell: a bar widget and a full-screen keyboard menu on **Super+Alt+E** that list
 every devenv project under your project roots. You can enter one, edit it,
 start and stop its processes, update its lock, allow or revoke it, and remove
 it. You can also create a new project from templates for languages, mobile and
-cloud.
+cloud and AI.
 
 Built for [nixarchy](https://olafkfreund.github.io/nixarchy/), and it works on
 any Omarchy with devenv installed.
@@ -36,6 +36,7 @@ any Omarchy with devenv installed.
   | Languages | Node.js, React, TypeScript, Python, Go, Rust, C++, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
   | Web | Frontend web, Backend web |
   | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
+  | AI | Local AI, AI providers |
   | Mobile | Flutter, Android (x86_64; allows unfree packages in its `devenv.yaml`) |
   | Cloud | AWS, GCP, and Azure infrastructure; [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates) also supports combined AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner and DigitalOcean projects |
   | Yours | anything in `~/.config/nixarchy-devenv/templates/` |
@@ -113,6 +114,12 @@ The frontend and backend web presets provide a small Node/TypeScript baseline
 with pinned Prettier and ESLint commands. Add the framework and package
 manifest that fits the project; the templates do not choose Vite, Next, Astro,
 Express, Fastify, or a database for you.
+
+The **Local AI** preset adds Python/uv, Ollama, llama.cpp, GPU/OpenCL
+diagnostics and PCI inspection. It does not start a model service, download
+weights, or configure NixOS GPU drivers. The **AI providers** preset adds
+Python/uv with curl and jq; add the provider SDKs your project needs with
+`uv add` so their versions live in the project's `pyproject.toml`.
 
 Secret policy is explicit: repository secrets are encrypted age files and
 runtime values are injected only when a command runs. SOPS or devenv

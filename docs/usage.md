@@ -221,6 +221,27 @@ future template may declare SOPS or devenv SecretSpec when it has a concrete
 provider-backed environment contract; no template creates an empty provider
 configuration just to claim SecretSpec support.
 
+### AI projects
+
+Choose **Local AI** for a Python/uv project with Ollama, llama.cpp, `nvtop`,
+PCI and OpenCL diagnostics. It provides clients and diagnostics only: it does
+not enable a service, download model weights, or configure NixOS GPU drivers.
+Install Python model libraries in the project with uv, and do machine-level GPU
+setup separately.
+
+Choose **AI providers** for hosted API work. It provides Python/uv, `curl` and
+`jq`; add only the SDKs the project uses, for example `uv add openai` or
+`uv add anthropic google-genai`. Keep API keys in the generated agenix secret
+files and expose them only for the command that needs them:
+
+```console
+$ printf %s "$OPENAI_API_KEY" | secret-add OPENAI_API_KEY
+$ secret-run --only OPENAI_API_KEY -- python your_client.py
+```
+
+Neither template creates credentials, provider configuration, automatic
+activation, or a hosted/local model service.
+
 ### Cloud projects
 
 Choose **AWS infrastructure**, **Google Cloud infrastructure**, or **Azure
