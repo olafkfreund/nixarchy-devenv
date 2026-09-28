@@ -5,7 +5,7 @@ shell: a bar widget and a full-screen keyboard menu on **Super+Alt+E** that list
 every devenv project under your project roots. You can enter one, edit it,
 start and stop its processes, update its lock, allow or revoke it, and remove
 it. You can also create a new project from templates for languages, mobile and
-cloud and AI.
+cloud, AI, Omarchy plugins and NixOS configurations.
 
 Built for [nixarchy](https://olafkfreund.github.io/nixarchy/), and it works on
 any Omarchy with devenv installed.
@@ -37,6 +37,8 @@ any Omarchy with devenv installed.
   | Web | Frontend web, Backend web |
   | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
   | AI | Local AI, AI providers |
+  | Omarchy | Omarchy plugin starter |
+  | NixOS | NixOS configuration starter |
   | Mobile | Flutter, Android (x86_64; allows unfree packages in its `devenv.yaml`) |
   | Cloud | AWS, GCP, and Azure infrastructure; [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates) also supports combined AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner and DigitalOcean projects |
   | Yours | anything in `~/.config/nixarchy-devenv/templates/` |

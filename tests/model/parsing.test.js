@@ -101,6 +101,16 @@ test("parseTemplates drops bad ids and bad providers", () => {
   eq(t[0].providers, ["aws"])
 })
 
+test("parseTemplates keeps scaffold templates without providers", () => {
+  const t = Model.parseTemplates(JSON.stringify([
+    { id: "omarchy-plugin", kind: "scaffold", group: "Omarchy", label: "Omarchy plugin", note: "n" }
+  ]))
+  eq(t[0].kind, "scaffold")
+  eq(t[0].providers, [])
+  eq(t[0].honoursGit, true)
+  eq(t[0].honoursAllow, true)
+})
+
 test("templateGroups orders sections, unknown groups last", () => {
   const t = templates().concat(Model.parseTemplates(JSON.stringify([{ id: "z", group: "Weird" }])))
   eq(Model.templateGroups(t).map(g => g.title), ["Languages", "Data & ML", "Mobile", "Cloud", "Yours", "Weird"])

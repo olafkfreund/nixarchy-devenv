@@ -235,6 +235,9 @@ cmd_init() {
         install_secret_scaffold
       fi
       ;;
+    scaffold)
+      "$share/scaffold.sh" "$tpl" "$share" || die 4 "the '$tpl' scaffold failed."
+      ;;
     personal)
       # -n: never overwrite. Checked above that devenv.nix is absent; a
       # devenv.yaml already here is kept and said so.

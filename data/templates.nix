@@ -478,6 +478,22 @@
     note = "The Android SDK (platform and build tools, adb) and a JDK. Allows unfree packages in this project's devenv.yaml, because the SDK is unfree. No emulator, system images or NDK until you turn them on in devenv.nix.";
   };
 
+  omarchy-plugin = {
+    kind = "scaffold";
+    group = "Omarchy";
+    label = "Omarchy plugin";
+    secretPolicy = "agenix";
+    note = "A minimal Omarchy bar-widget plugin with a manifest, QML entry point, JavaScript test, Lua binding example, validation script, and agenix secret helpers. Live omarchy plugin validation still needs an Omarchy installation.";
+  };
+
+  nixos-config = {
+    kind = "scaffold";
+    group = "NixOS";
+    label = "NixOS configuration";
+    secretPolicy = "agenix";
+    note = "A minimal flake with an example host, reusable modules directory, nixfmt/statix/deadnix validation, agenix wiring, and encrypted project-secret helpers. Review hardware, users, state version, and host identity before rebuilding.";
+  };
+
   # ---- generators ------------------------------------------------------------
 
   # Not a flake template: init.sh composes several providers into one project

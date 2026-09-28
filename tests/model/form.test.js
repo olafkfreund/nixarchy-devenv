@@ -62,6 +62,17 @@ test("providers are ignored for presets", () => {
   eq(v({ providers: ["aws"] }).argv.slice(-1), ["python"])
 })
 
+test("a scaffold has no provider field or provider argv", () => {
+  const ts = templates().concat(Model.parseTemplates(JSON.stringify([
+    { id: "omarchy-plugin", kind: "scaffold", group: "Omarchy", label: "Omarchy plugin", note: "n" }
+  ])))
+  const fields = Model.formFields(ts, "omarchy-plugin")
+  eq(fields.map(f => f.key), ["name", "parent", "template", "git", "allow"])
+  const r = Model.validateForm({ template: "omarchy-plugin", providers: [], name: "app",
+    parent: "~/Source", git: false, allow: true }, ts, HOME)
+  eq(r.argv, ["nixarchy-devenv", "new", "--allow", "--no-git", "--parent", "/home/user/Source", "--name", "app", "omarchy-plugin"])
+})
+
 test("every field refuses hostile input", () => {
   for (const bad of HOSTILE) {
     ok(!v({ name: bad }).ok, "name " + JSON.stringify(bad))

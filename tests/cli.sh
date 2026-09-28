@@ -51,12 +51,12 @@ fresh() { local d; d=$(mktemp -d "$root/p.XXXX"); echo "$d"; }
 # ---- templates ----------------------------------------------------------------
 
 # Android is x86_64-only (its `systems`), so the built-in count is per machine.
-builtin=24
-[ "$(uname -m)" = x86_64 ] && builtin=25
+builtin=26
+[ "$(uname -m)" = x86_64 ] && builtin=27
 expect 0 "templates --json" -- "$cli" templates --json
 jq -e --argjson n "$builtin" 'length == $n and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
   bad "templates: $builtin entries with id/kind/group/label"
-if [ "$builtin" = 25 ]; then
+if [ "$builtin" = 27 ]; then
   jq -e 'map(select(.id=="android"))[0].yaml == true and (map(select(.id=="python"))[0] | has("yaml") | not)' "$root/out" >/dev/null ||
     bad "templates: android carries yaml, python does not"
 else
@@ -64,7 +64,7 @@ else
 fi
 jq -e 'map(select(.id=="cloud"))[0] | .honours_git == false and (.providers|index("aws"))' "$root/out" >/dev/null ||
   bad "templates: cloud generator fields"
-jq -e 'all(.[]; (.kind == "preset" and .secretPolicy == "agenix" and .secretScaffold == true) or (.kind == "generator" and .secretPolicy == "external-agenix"))' "$root/out" >/dev/null ||
+jq -e 'all(.[]; (.kind == "preset" and .secretPolicy == "agenix" and .secretScaffold == true) or (.kind == "generator" and .secretPolicy == "external-agenix") or (.kind == "scaffold" and .secretPolicy == "agenix" and .secretScaffold == true))' "$root/out" >/dev/null ||
   bad "templates: every entry declares a supported secret policy"
 jq -e 'map(select(.id as $id | ["cpp", "go", "python", "rust"] | index($id))) | length == 4 and all(.[]; .secretScaffold == true)' "$root/out" >/dev/null ||
   bad "templates: language presets carry the secret scaffold"
@@ -74,6 +74,8 @@ jq -e 'map(select(.id == "local-ai"))[0] | .group == "AI" and .shellPackages == 
   bad "templates: local-ai package metadata"
 jq -e 'map(select(.id == "ai-providers"))[0] | .group == "AI" and .shellPackages == ["pkgs.curl", "pkgs.jq"]' "$root/out" >/dev/null ||
   bad "templates: ai-providers package metadata"
+jq -e 'map(select(.kind == "scaffold")) | length == 2 and all(.[]; .secretPolicy == "agenix" and .secretScaffold == true)' "$root/out" >/dev/null ||
+  bad "templates: scaffold metadata and secret policy"
 for provider in aws gcp azure; do
   jq -e --arg id "$provider" 'map(select(.id == $id))[0] | .providers == [$id] and .honours_git == false and .honours_allow == true' "$root/out" >/dev/null ||
     bad "templates: $provider is a single-provider generator"
@@ -170,7 +172,7 @@ grep -q 'languages.python' "$root/err" || bad "refusal prints the lines to paste
 grep -q '^inputs:' "$d/devenv.yaml" && ! grep -q '^nixpkgs:' "$d/devenv.yaml" || bad "init python: devenv.yaml untouched"
 
 # A preset with yaml: appended to devenv init's devenv.yaml, once, never twice.
-if [ "$builtin" = 25 ]; then
+if [ "$builtin" = 27 ]; then
   d=$(fresh)
   expect 0 "init android" -- with_devenv bash -c "cd '$d' && '$cli' init --no-git android"
   grep -q '^  android = {' "$d/devenv.nix" || bad "init android: lines spliced"
@@ -198,6 +200,27 @@ dai=$(fresh)
 expect 0 "init ai-providers" -- with_devenv bash -c "cd '$dai' && '$cli' init --no-git ai-providers"
 grep -q '^  packages = \[ pkgs.git \] ++ \[ pkgs.curl pkgs.jq \];' "$dai/devenv.nix" ||
   bad "init ai-providers: shell packages rendered"
+
+dplugin=$(fresh)
+expect 0 "init omarchy-plugin" -- bash -c "cd '$dplugin' && '$cli' init --no-git omarchy-plugin"
+[ -f "$dplugin/manifest.json" ] && [ -f "$dplugin/BarWidget.qml" ] && [ -x "$dplugin/scripts/validate" ] ||
+  bad "init omarchy-plugin: starter files"
+[ -f "$dplugin/secrets.nix" ] && [ -f "$dplugin/secrets/.gitkeep" ] || bad "init omarchy-plugin: secret scaffold"
+[ ! -d "$dplugin/.git" ] || bad "init omarchy-plugin: --no-git"
+
+dnixos=$(fresh)
+expect 0 "init nixos-config" -- bash -c "cd '$dnixos' && '$cli' init --no-git nixos-config"
+[ -f "$dnixos/flake.nix" ] && [ -f "$dnixos/hosts/example/configuration.nix" ] && [ -x "$dnixos/scripts/validate" ] ||
+  bad "init nixos-config: starter files"
+grep -q 'agenix.nixosModules.default' "$dnixos/flake.nix" || bad "init nixos-config: agenix module"
+[ -f "$dnixos/secrets.nix" ] && [ -f "$dnixos/secrets/.gitkeep" ] || bad "init nixos-config: secret scaffold"
+
+dplugin=$(fresh)
+expect 0 "init omarchy-plugin --allow" -- with_devenv bash -c "cd '$dplugin' && '$cli' init --allow --no-git omarchy-plugin"
+grep -q "$dplugin :: allow" "$STUB_LOG" || bad "init omarchy-plugin --allow: devenv allow ran"
+
+dplugin=$(fresh)
+expect 1 "scaffold with providers" -- bash -c "cd '$dplugin' && '$cli' init omarchy-plugin aws"
 
 d=$(fresh)
 expect 0 "init --allow go" -- with_devenv bash -c "cd '$d' && '$cli' init --allow go"

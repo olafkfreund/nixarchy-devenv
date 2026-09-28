@@ -242,6 +242,32 @@ $ secret-run --only OPENAI_API_KEY -- python your_client.py
 Neither template creates credentials, provider configuration, automatic
 activation, or a hosted/local model service.
 
+### Omarchy and NixOS projects
+
+**Omarchy plugin** creates a small bar-widget starter with `manifest.json`, a
+`BarWidget.qml` entry point, JavaScript tests, a Lua binding example, and
+`scripts/validate`. Run that validator for the manifest and Node checks. With
+Omarchy installed, also run `omarchy plugin validate .` and test the plugin in
+the live shell; those checks cannot run hermetically in a generic devenv.
+Replace the placeholder plugin ID, author, description, and implementation
+before publishing.
+
+**NixOS configuration** creates a flake with an example host under
+`hosts/example/`, a `modules/` starting point, agenix wired as a flake input,
+and `scripts/validate`. The example is marked `boot.isContainer = true` so it
+can evaluate without pretending to know your disk or hardware. Before using it
+on a machine, replace the host identity, system, state version, hardware
+configuration, users, and modules. Review the result, then explicitly apply it
+with your normal command, such as:
+
+```console
+$ sudo nixos-rebuild switch --flake .#example
+```
+
+Neither starter copies this machine's hardware, users, credentials, or private
+keys. Both include the shared agenix-compatible devenv helpers for adding,
+editing, deleting, and rekeying encrypted project secrets.
+
 ### Cloud projects
 
 Choose **AWS infrastructure**, **Google Cloud infrastructure**, or **Azure
