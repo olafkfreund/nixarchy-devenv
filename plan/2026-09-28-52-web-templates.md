@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 52
 spec: spec/2026-09-28-52-web-templates.md
 ---
