@@ -415,7 +415,7 @@
     group = "Cloud";
     label = "AWS infrastructure";
     flake = "github:olafkfreund/cloud-projects-templates";
-    rev = "a07bc9b632b2233cf4cb58da81480550bf9c8461";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [ "aws" ];
     honours = {
       git = false;
@@ -429,7 +429,7 @@
     group = "Cloud";
     label = "Google Cloud infrastructure";
     flake = "github:olafkfreund/cloud-projects-templates";
-    rev = "a07bc9b632b2233cf4cb58da81480550bf9c8461";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [ "gcp" ];
     honours = {
       git = false;
@@ -443,7 +443,7 @@
     group = "Cloud";
     label = "Azure infrastructure";
     flake = "github:olafkfreund/cloud-projects-templates";
-    rev = "a07bc9b632b2233cf4cb58da81480550bf9c8461";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [ "azure" ];
     honours = {
       git = false;
