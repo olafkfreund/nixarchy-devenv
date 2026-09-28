@@ -20,7 +20,13 @@
 }:
 writeShellApplication {
   name = "templates-check";
-  runtimeInputs = [ cli devenv coreutils git jq ];
+  runtimeInputs = [
+    cli
+    devenv
+    coreutils
+    git
+    jq
+  ];
   text = ''
     real_allowed=''${DEVENV_HOME:+$DEVENV_HOME/allowed}
     real_allowed=''${real_allowed:-''${XDG_DATA_HOME:-$HOME/.local/share}/devenv/allowed}
@@ -58,7 +64,10 @@ writeShellApplication {
       kind=$(jq -r --arg id "$id" '.[] | select(.id == $id) | .kind' <<<"$index")
       args=(--no-git)
       extra=()
-      if [ "$kind" = generator ]; then args=(); extra=(aws); fi
+      if [ "$kind" = generator ]; then
+        args=()
+        extra=("$(jq -r --arg id "$id" '.[] | select(.id == $id) | .providers[0]' <<<"$index")")
+      fi
       printf '%-12s ' "$id"
       if ! iso nixarchy-devenv new "''${args[@]}" --parent "$root/p" --name "$id" "$id" "''${extra[@]}" >"$root/$id.log" 2>&1; then
         echo "FAIL (scaffold)"; sed 's/^/    /' "$root/$id.log" | tail -20; failed+=("$id"); continue

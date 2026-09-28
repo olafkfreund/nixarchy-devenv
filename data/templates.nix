@@ -421,4 +421,49 @@
     };
     note = "Provider CLIs, Terraform, lint and security tools, AGENTS.md and agent skills, and MCP servers for AI agents. Some MCP servers need cloud credentials: give them read-only ones. Always runs git init.";
   };
+
+  # Single-provider views of the same generator. Keep these separate from
+  # `cloud`: the form can offer a focused starting point without copying the
+  # generator's tool catalogue or secret workflow into this repository.
+  aws = {
+    kind = "generator";
+    group = "Cloud";
+    label = "AWS infrastructure";
+    flake = "github:olafkfreund/cloud-projects-templates";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
+    providers = [ "aws" ];
+    honours = {
+      git = false;
+      allow = true;
+    };
+    note = "AWS CLI, eksctl, Terraform, Kubernetes tools, lint and security checks, provider skills, and agenix-encrypted project secrets with add/edit/delete/rekey helpers. Always runs git init.";
+  };
+
+  gcp = {
+    kind = "generator";
+    group = "Cloud";
+    label = "Google Cloud infrastructure";
+    flake = "github:olafkfreund/cloud-projects-templates";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
+    providers = [ "gcp" ];
+    honours = {
+      git = false;
+      allow = true;
+    };
+    note = "gcloud, GKE authentication, Terraform, Kubernetes tools, lint and security checks, provider skills, and agenix-encrypted project secrets with add/edit/delete/rekey helpers. Always runs git init.";
+  };
+
+  azure = {
+    kind = "generator";
+    group = "Cloud";
+    label = "Azure infrastructure";
+    flake = "github:olafkfreund/cloud-projects-templates";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
+    providers = [ "azure" ];
+    honours = {
+      git = false;
+      allow = true;
+    };
+    note = "Azure CLI, Bicep, kubelogin, Terraform, Kubernetes tools, lint and security checks, provider skills, and agenix-encrypted project secrets with add/edit/delete/rekey helpers. Always runs git init.";
+  };
 }
