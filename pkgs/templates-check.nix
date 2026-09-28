@@ -72,8 +72,33 @@ writeShellApplication {
       if ! iso nixarchy-devenv new "''${args[@]}" --parent "$root/p" --name "$id" "$id" "''${extra[@]}" >"$root/$id.log" 2>&1; then
         echo "FAIL (scaffold)"; sed 's/^/    /' "$root/$id.log" | tail -20; failed+=("$id"); continue
       fi
+      policy=$(jq -r --arg id "$id" '.[] | select(.id == $id) | .secretPolicy' <<<"$index")
+      project="$root/p/$id"
+      case "$policy" in
+        agenix|external-agenix)
+          [ -f "$project/secrets.nix" ] && [ -d "$project/secrets" ] || {
+            echo "FAIL (secret files)"; echo "    $policy project has no secrets.nix/secrets/"; failed+=("$id"); continue;
+          }
+          for secret_file in "$project"/secrets/*; do
+            [ -e "$secret_file" ] || continue
+            case "$(basename "$secret_file")" in
+              .gitkeep|*.age) ;;
+              *) echo "FAIL (plaintext secret file)"; echo "    $secret_file"; failed+=("$id"); continue 2 ;;
+            esac
+          done
+          if [ "$policy" = agenix ] && ! grep -q 'secret-add' "$project/devenv.nix"; then
+            echo "FAIL (secret helpers)"; echo "    agenix preset has no secret-add helper"; failed+=("$id"); continue
+          fi
+          if [ "$policy" = external-agenix ] && ! grep -R -q 'secret-user-add' "$project"; then
+            echo "FAIL (secret helpers)"; echo "    generator has no recipient helper"; failed+=("$id"); continue
+          fi
+          ;;
+        *)
+          echo "FAIL (secret policy)"; echo "    unsupported policy '$policy'"; failed+=("$id"); continue
+          ;;
+      esac
       # `devenv info` is the cheapest command that evaluates the whole module.
-      if ! (cd "$root/p/$id" && iso devenv info) >>"$root/$id.log" 2>&1; then
+      if ! (cd "$project" && iso devenv info) >>"$root/$id.log" 2>&1; then
         echo "FAIL (devenv info)"; tail -20 "$root/$id.log" | sed 's/^/    /'
         sed 's/^/    | /' "$root/p/$id/devenv.nix"; failed+=("$id"); continue
       fi

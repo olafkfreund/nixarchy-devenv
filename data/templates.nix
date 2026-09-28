@@ -450,7 +450,7 @@
     label = "Cloud project";
     secretPolicy = "external-agenix";
     flake = "github:olafkfreund/cloud-projects-templates";
-    rev = "3ae8b0d73f2842dfc579f63e55944987cd787b4b";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [
       "aws"
       "azure"
