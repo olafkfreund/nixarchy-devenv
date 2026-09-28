@@ -33,7 +33,7 @@ any Omarchy with devenv installed.
 
   | Group | Templates |
   | --- | --- |
-  | Languages | Node.js, React, TypeScript, Python, Go, Rust, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
+  | Languages | Node.js, React, TypeScript, Python, Go, Rust, C++, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
   | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
   | Mobile | Flutter, Android (x86_64; allows unfree packages in its `devenv.yaml`) |
   | Cloud | [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates): AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner, DigitalOcean, one or several |
@@ -101,6 +101,11 @@ menu row, paste `share/omarchy-menu.jsonc` into
 - **`nix`** with flakes, for the cloud templates.
 - **`git`**, for `git init` in new projects.
 - **`wl-copy`**, for copying a path.
+
+Language presets include an agenix-compatible encrypted-secret scaffold. Inside
+the generated devenv, use `secret-add`, `secret-edit`, `secret-delete`,
+`secret-list`, `secret-run`, `secret-rekey`, and `secret-user-add`; plaintext
+values are never written to `devenv.nix`.
 
 ## Settings
 

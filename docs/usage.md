@@ -185,6 +185,30 @@ android = {
 
 It is offered on x86_64 only.
 
+### Language presets and secrets
+
+The Rust, Python, Go and C++ presets use devenv's language modules. Python
+enables uv and a virtualenv but does not run `uv sync` until the project has a
+dependency manifest. C++ supplies the compiler and language server; choose
+CMake, Meson or another build system for the project.
+
+Each of these presets also creates an agenix-compatible `secrets.nix` and an
+encrypted-only `secrets/` directory. From `devenv shell`:
+
+```console
+$ printf %s "$TOKEN" | secret-add API_TOKEN
+$ secret-edit API_TOKEN
+$ secret-delete API_TOKEN
+$ secret-list
+$ secret-run --only API_TOKEN -- terraform plan
+$ secret-user-add 'ssh-ed25519 AAAA… teammate' teammate
+$ secret-rekey
+```
+
+Add recipients to `secrets.nix` before storing the first secret. Commit
+`secrets.nix` and `secrets/*.age`; never commit plaintext values or pass them
+through shell history, logs, Terraform files or process arguments.
+
 ### Cloud projects
 
 Pick **Cloud project** and tick one or more providers with <kbd>space</kbd>:
