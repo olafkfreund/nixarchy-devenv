@@ -24,6 +24,11 @@ let
     n: !(templates.${n} ? systems) || lib.elem stdenv.hostPlatform.system templates.${n}.systems
   ) (lib.attrNames templates);
   presetIds = lib.filter (n: templates.${n}.kind == "preset") ids;
+  secretScaffold = lib.any (
+    n: templates.${n} ? secretScaffold && templates.${n}.secretScaffold
+  ) presetIds;
+  secretScaffoldFile = writeText "secret-scaffold.nix" (builtins.readFile ./secret-scaffold.nix);
+  secretsFile = writeText "secrets.nix" (builtins.readFile ./secrets.nix);
 
   # A preset's yaml changes the project's own nixpkgs configuration (android's
   # allows unfree packages), and the form's only word on a template is its
@@ -48,9 +53,15 @@ let
     in
     {
       inherit id;
-      inherit (t) kind group label note;
+      inherit (t)
+        kind
+        group
+        label
+        note
+        ;
     }
     // lib.optionalAttrs (t ? yaml) { yaml = true; }
+    // lib.optionalAttrs (t ? secretScaffold) { secretScaffold = t.secretScaffold; }
     // lib.optionalAttrs (t.kind == "generator") {
       inherit (t) flake rev providers;
       honours_git = t.honours.git;
@@ -63,6 +74,10 @@ let
     ''
       mkdir -p $out/presets
       cp ${index} $out/templates.json
+      ${lib.optionalString secretScaffold ''
+        cp ${secretScaffoldFile} $out/secret-scaffold.nix
+        cp ${secretsFile} $out/secrets.nix
+      ''}
     ''
     + lib.concatMapStrings (n: ''
       cp ${writeText "${n}.nix" (indent templates.${n}.lines)} $out/presets/${n}.nix
@@ -73,8 +88,9 @@ let
     '') (lib.filter (n: templates.${n} ? yaml) presetIds)
   );
 in
-assert lib.assertMsg (unannouncedYaml == [ ])
-  "templates with yaml whose note does not mention devenv.yaml: ${toString unannouncedYaml}";
+assert lib.assertMsg (
+  unannouncedYaml == [ ]
+) "templates with yaml whose note does not mention devenv.yaml: ${toString unannouncedYaml}";
 writeShellApplication {
   name = "nixarchy-devenv";
   runtimeInputs = [

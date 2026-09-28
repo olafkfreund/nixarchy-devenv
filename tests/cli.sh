@@ -51,12 +51,12 @@ fresh() { local d; d=$(mktemp -d "$root/p.XXXX"); echo "$d"; }
 # ---- templates ----------------------------------------------------------------
 
 # Android is x86_64-only (its `systems`), so the built-in count is per machine.
-builtin=19
-[ "${HOSTTYPE:-}" = x86_64 ] && builtin=20
+builtin=20
+[ "${HOSTTYPE:-}" = x86_64 ] && builtin=21
 expect 0 "templates --json" -- "$cli" templates --json
 jq -e --argjson n "$builtin" 'length == $n and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
   bad "templates: $builtin entries with id/kind/group/label"
-if [ "$builtin" = 20 ]; then
+if [ "$builtin" = 21 ]; then
   jq -e 'map(select(.id=="android"))[0].yaml == true and (map(select(.id=="python"))[0] | has("yaml") | not)' "$root/out" >/dev/null ||
     bad "templates: android carries yaml, python does not"
 else
@@ -64,6 +64,8 @@ else
 fi
 jq -e 'map(select(.id=="cloud"))[0] | .honours_git == false and (.providers|index("aws"))' "$root/out" >/dev/null ||
   bad "templates: cloud generator fields"
+jq -e 'map(select(.id as $id | ["cpp", "go", "python", "rust"] | index($id))) | length == 4 and all(.[]; .secretScaffold == true)' "$root/out" >/dev/null ||
+  bad "templates: language presets carry the secret scaffold"
 for provider in aws gcp azure; do
   jq -e --arg id "$provider" 'map(select(.id == $id))[0] | .providers == [$id] and .honours_git == false and .honours_allow == true' "$root/out" >/dev/null ||
     bad "templates: $provider is a single-provider generator"
@@ -122,6 +124,10 @@ expect 0 "init python" -- with_devenv bash -c "cd '$d' && '$cli' init --no-git p
 grep -q 'languages.python = {' "$d/devenv.nix" || bad "init python: preset spliced"
 grep -q '^  languages.python = {' "$d/devenv.nix" || bad "init python: indented two spaces"
 ! grep -q 'languages.rust' "$d/devenv.nix" || bad "init python: placeholder replaced"
+[ -f "$d/secrets.nix" ] && [ -f "$d/secrets/.gitkeep" ] || bad "init python: secret scaffold files"
+grep -q '^    secret-add = {' "$d/devenv.nix" && grep -q '^    secret-user-add = {' "$d/devenv.nix" ||
+  bad "init python: secret helper scripts"
+[ "$(grep -c '^    secret-add = {' "$d/devenv.nix")" = 1 ] || bad "init python: one secret scaffold"
 [ "$(cat "$d/.devenv-template")" = python ] || bad "init python: .devenv-template"
 ! grep -q "$d :: allow" "$STUB_LOG" || bad "init python: no allow unless asked"
 [ ! -d "$d/.git" ] || bad "init --no-git: no repository"

@@ -134,6 +134,21 @@ splice_preset() {
   sed -i "$((close - 1))r $file" devenv.nix
 }
 
+splice_secret_scaffold() {
+  local file=$1 close
+  close=$(grep -n '^}' devenv.nix | tail -1 | cut -d: -f1) || true
+  [ -n "$close" ] || return 1
+  sed -i "$((close - 1))r $file" devenv.nix
+}
+
+install_secret_scaffold() {
+  splice_secret_scaffold "$share/secret-scaffold.nix" ||
+    die 4 "devenv init wrote a devenv.nix without a closing '}', so the secret scaffold was not added."
+  cp "$share/secrets.nix" secrets.nix
+  mkdir -p secrets
+  : >secrets/.gitkeep
+}
+
 cmd_init() {
   local allow=0 git=1
   while [ $# -gt 0 ]; do
@@ -203,6 +218,9 @@ cmd_init() {
           exit 4
         fi
         { echo; cat "$share/presets/$tpl.yaml"; } >>devenv.yaml
+      fi
+      if [ "$(template_field "$tpl" secretScaffold)" = true ]; then
+        install_secret_scaffold
       fi
       ;;
     personal)
