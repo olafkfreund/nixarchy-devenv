@@ -24,9 +24,7 @@ let
     n: !(templates.${n} ? systems) || lib.elem stdenv.hostPlatform.system templates.${n}.systems
   ) (lib.attrNames templates);
   presetIds = lib.filter (n: templates.${n}.kind == "preset") ids;
-  secretScaffold = lib.any (
-    n: templates.${n} ? secretScaffold && templates.${n}.secretScaffold
-  ) presetIds;
+  secretScaffold = presetIds != [ ];
   secretScaffoldFile = writeText "secret-scaffold.nix" (builtins.readFile ./secret-scaffold.nix);
   secretsFile = writeText "secrets.nix" (builtins.readFile ./secrets.nix);
 
@@ -35,6 +33,11 @@ let
   # note -- so the note has to say so, or the catalogue does not build.
   unannouncedYaml = lib.filter (
     n: templates.${n} ? yaml && !(lib.hasInfix "devenv.yaml" templates.${n}.note)
+  ) (lib.attrNames templates);
+  unsupportedGeneratorPolicy = lib.filter (
+    n:
+    templates.${n}.kind == "generator"
+    && (!(templates.${n} ? secretPolicy) || !lib.elem templates.${n}.secretPolicy [ "external-agenix" ])
   ) (lib.attrNames templates);
 
   # Nix '' strings strip common indentation, so the catalogue is flush left and
@@ -61,7 +64,10 @@ let
         ;
     }
     // lib.optionalAttrs (t ? yaml) { yaml = true; }
-    // lib.optionalAttrs (t ? secretScaffold) { secretScaffold = t.secretScaffold; }
+    // {
+      secretPolicy = if t.kind == "preset" then "agenix" else t.secretPolicy;
+      secretScaffold = t.kind == "preset";
+    }
     // lib.optionalAttrs (t.kind == "generator") {
       inherit (t) flake rev providers;
       honours_git = t.honours.git;
@@ -91,6 +97,9 @@ in
 assert lib.assertMsg (
   unannouncedYaml == [ ]
 ) "templates with yaml whose note does not mention devenv.yaml: ${toString unannouncedYaml}";
+assert lib.assertMsg (
+  unsupportedGeneratorPolicy == [ ]
+) "generators without external-agenix policy: ${toString unsupportedGeneratorPolicy}";
 writeShellApplication {
   name = "nixarchy-devenv";
   runtimeInputs = [

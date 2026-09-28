@@ -62,7 +62,8 @@
 #            strip common indentation; pkgs/cli.nix indents them on the way in.
 #   yaml     (preset, optional) devenv.yaml keys, flush left, appended as is.
 #   systems  (optional) Nix systems the entry is offered on.
-#   secretScaffold  (optional) add the shared encrypted-secret helpers.
+#   secretPolicy  (generator) the generator's declared secret contract.
+#                  Presets always use the built-in agenix scaffold.
 #   flake, rev, providers, honours  (generator) see the `cloud` entry.
 {
   # react and node are the same three lines under two names, and that is
@@ -447,8 +448,9 @@
     kind = "generator";
     group = "Cloud";
     label = "Cloud project";
+    secretPolicy = "external-agenix";
     flake = "github:olafkfreund/cloud-projects-templates";
-    rev = "3ae8b0d73f2842dfc579f63e55944987cd787b4b";
+    rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [
       "aws"
       "azure"
@@ -475,6 +477,7 @@
     kind = "generator";
     group = "Cloud";
     label = "AWS infrastructure";
+    secretPolicy = "external-agenix";
     flake = "github:olafkfreund/cloud-projects-templates";
     rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [ "aws" ];
@@ -489,6 +492,7 @@
     kind = "generator";
     group = "Cloud";
     label = "Google Cloud infrastructure";
+    secretPolicy = "external-agenix";
     flake = "github:olafkfreund/cloud-projects-templates";
     rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [ "gcp" ];
@@ -503,6 +507,7 @@
     kind = "generator";
     group = "Cloud";
     label = "Azure infrastructure";
+    secretPolicy = "external-agenix";
     flake = "github:olafkfreund/cloud-projects-templates";
     rev = "3d3a8ecffbc9516a4d66e307698428a5dd94195b";
     providers = [ "azure" ];

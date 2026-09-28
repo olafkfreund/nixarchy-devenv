@@ -64,6 +64,8 @@ else
 fi
 jq -e 'map(select(.id=="cloud"))[0] | .honours_git == false and (.providers|index("aws"))' "$root/out" >/dev/null ||
   bad "templates: cloud generator fields"
+jq -e 'all(.[]; (.kind == "preset" and .secretPolicy == "agenix" and .secretScaffold == true) or (.kind == "generator" and .secretPolicy == "external-agenix"))' "$root/out" >/dev/null ||
+  bad "templates: every entry declares a supported secret policy"
 jq -e 'map(select(.id as $id | ["cpp", "go", "python", "rust"] | index($id))) | length == 4 and all(.[]; .secretScaffold == true)' "$root/out" >/dev/null ||
   bad "templates: language presets carry the secret scaffold"
 jq -e 'map(select(.id as $id | ["frontend", "backend"] | index($id))) | length == 2 and all(.[]; .secretScaffold == true) and all(.[]; .group == "Web")' "$root/out" >/dev/null ||
@@ -130,6 +132,8 @@ grep -q '^  languages.python = {' "$d/devenv.nix" || bad "init python: indented 
 grep -q '^    secret-add = {' "$d/devenv.nix" && grep -q '^    secret-user-add = {' "$d/devenv.nix" ||
   bad "init python: secret helper scripts"
 [ "$(grep -c '^    secret-add = {' "$d/devenv.nix")" = 1 ] || bad "init python: one secret scaffold"
+grep -q 'NAME must match \^\[A-Z\]\[A-Z0-9_\]\*\$' "$d/devenv.nix" && grep -q 'invalid SSH public key' "$d/devenv.nix" ||
+  bad "init python: secret refusal checks"
 [ "$(cat "$d/.devenv-template")" = python ] || bad "init python: .devenv-template"
 ! grep -q "$d :: allow" "$STUB_LOG" || bad "init python: no allow unless asked"
 [ ! -d "$d/.git" ] || bad "init --no-git: no repository"
@@ -143,6 +147,11 @@ grep -q '^  scripts.lint = {' "$dweb/devenv.nix" && grep -q '^    packages = \[ 
   bad "init frontend: linter script package"
 [ "$(grep -c '^  packages = ' "$dweb/devenv.nix")" = 1 ] || bad "init frontend: duplicate top-level packages"
 [ -f "$dweb/secrets.nix" ] && [ -f "$dweb/secrets/.gitkeep" ] || bad "init frontend: secret scaffold files"
+
+dlegacy=$(fresh)
+expect 0 "init node gets default secret policy" -- with_devenv bash -c "cd '$dlegacy' && '$cli' init --no-git node"
+[ -f "$dlegacy/secrets.nix" ] && grep -q 'secret-rekey' "$dlegacy/devenv.nix" ||
+  bad "init node: default secret scaffold"
 
 # Without the placeholder line, the preset goes before the last `}` instead.
 d2=$(fresh)

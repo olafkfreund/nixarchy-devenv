@@ -103,15 +103,21 @@ menu row, paste `share/omarchy-menu.jsonc` into
 - **`git`**, for `git init` in new projects.
 - **`wl-copy`**, for copying a path.
 
-Language presets include an agenix-compatible encrypted-secret scaffold. Inside
-the generated devenv, use `secret-add`, `secret-edit`, `secret-delete`,
+Every built-in preset includes an agenix-compatible encrypted-secret scaffold.
+Inside the generated devenv, use `secret-add`, `secret-edit`, `secret-delete`,
 `secret-list`, `secret-run`, `secret-rekey`, and `secret-user-add`; plaintext
-values are never written to `devenv.nix`.
+values are never written to `devenv.nix`. Cloud generators declare and provide
+the same contract externally.
 
 The frontend and backend web presets provide a small Node/TypeScript baseline
 with pinned Prettier and ESLint commands. Add the framework and package
 manifest that fits the project; the templates do not choose Vite, Next, Astro,
 Express, Fastify, or a database for you.
+
+Secret policy is explicit: repository secrets are encrypted age files and
+runtime values are injected only when a command runs. SOPS or devenv
+SecretSpec may be used by a future template when it has a concrete provider or
+application contract; templates do not generate an empty provider setup.
 
 ## Settings
 
