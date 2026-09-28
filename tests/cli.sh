@@ -22,7 +22,7 @@ mkdir -p "$HOME" "$XDG_DATA_HOME/devenv"
 # devenv or nix. "No devenv" has to mean no devenv, and nothing here may reach
 # the network or the real trust database.
 mkdir -p "$root/bin"
-for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir mv sleep touch ln sort uniq wc sha256sum stat; do
+for c in bash env git cat grep sed jq mktemp readlink dirname rm mkdir mv sleep touch ln sort uniq wc sha256sum stat uname; do
   ln -s "$(command -v "$c")" "$root/bin/$c"
 done
 base_path="$root/bin"
@@ -51,12 +51,12 @@ fresh() { local d; d=$(mktemp -d "$root/p.XXXX"); echo "$d"; }
 # ---- templates ----------------------------------------------------------------
 
 # Android is x86_64-only (its `systems`), so the built-in count is per machine.
-builtin=22
-[ "${HOSTTYPE:-}" = x86_64 ] && builtin=23
+builtin=24
+[ "$(uname -m)" = x86_64 ] && builtin=25
 expect 0 "templates --json" -- "$cli" templates --json
 jq -e --argjson n "$builtin" 'length == $n and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
   bad "templates: $builtin entries with id/kind/group/label"
-if [ "$builtin" = 23 ]; then
+if [ "$builtin" = 25 ]; then
   jq -e 'map(select(.id=="android"))[0].yaml == true and (map(select(.id=="python"))[0] | has("yaml") | not)' "$root/out" >/dev/null ||
     bad "templates: android carries yaml, python does not"
 else
@@ -70,6 +70,10 @@ jq -e 'map(select(.id as $id | ["cpp", "go", "python", "rust"] | index($id))) | 
   bad "templates: language presets carry the secret scaffold"
 jq -e 'map(select(.id as $id | ["frontend", "backend"] | index($id))) | length == 2 and all(.[]; .secretScaffold == true) and all(.[]; .group == "Web")' "$root/out" >/dev/null ||
   bad "templates: web presets carry the secret scaffold"
+jq -e 'map(select(.id == "local-ai"))[0] | .group == "AI" and .shellPackages == ["pkgs.ollama", "pkgs.llama-cpp", "pkgs.nvtopPackages.full", "pkgs.pciutils", "pkgs.clinfo"]' "$root/out" >/dev/null ||
+  bad "templates: local-ai package metadata"
+jq -e 'map(select(.id == "ai-providers"))[0] | .group == "AI" and .shellPackages == ["pkgs.curl", "pkgs.jq"]' "$root/out" >/dev/null ||
+  bad "templates: ai-providers package metadata"
 for provider in aws gcp azure; do
   jq -e --arg id "$provider" 'map(select(.id == $id))[0] | .providers == [$id] and .honours_git == false and .honours_allow == true' "$root/out" >/dev/null ||
     bad "templates: $provider is a single-provider generator"
@@ -166,7 +170,7 @@ grep -q 'languages.python' "$root/err" || bad "refusal prints the lines to paste
 grep -q '^inputs:' "$d/devenv.yaml" && ! grep -q '^nixpkgs:' "$d/devenv.yaml" || bad "init python: devenv.yaml untouched"
 
 # A preset with yaml: appended to devenv init's devenv.yaml, once, never twice.
-if [ "$builtin" = 17 ]; then
+if [ "$builtin" = 25 ]; then
   d=$(fresh)
   expect 0 "init android" -- with_devenv bash -c "cd '$d' && '$cli' init --no-git android"
   grep -q '^  android = {' "$d/devenv.nix" || bad "init android: lines spliced"
@@ -183,6 +187,17 @@ if [ "$builtin" = 17 ]; then
   [ "$(grep -c '^nixpkgs:' "$d/devenv.yaml")" = 1 ] && ! grep -q '^  allow_unfree: true$' "$d/devenv.yaml" ||
     bad "nixpkgs: refusal writes no second key"
 fi
+
+dai=$(fresh)
+expect 0 "init local-ai" -- with_devenv bash -c "cd '$dai' && '$cli' init --no-git local-ai"
+grep -q '^  packages = \[ pkgs.git \] ++ \[ pkgs.ollama pkgs.llama-cpp pkgs.nvtopPackages.full pkgs.pciutils pkgs.clinfo \];' "$dai/devenv.nix" ||
+  bad "init local-ai: shell packages rendered"
+grep -q '^  languages.python = {' "$dai/devenv.nix" || bad "init local-ai: Python enabled"
+
+dai=$(fresh)
+expect 0 "init ai-providers" -- with_devenv bash -c "cd '$dai' && '$cli' init --no-git ai-providers"
+grep -q '^  packages = \[ pkgs.git \] ++ \[ pkgs.curl pkgs.jq \];' "$dai/devenv.nix" ||
+  bad "init ai-providers: shell packages rendered"
 
 d=$(fresh)
 expect 0 "init --allow go" -- with_devenv bash -c "cd '$d' && '$cli' init --allow go"

@@ -24,6 +24,7 @@ let
     n: !(templates.${n} ? systems) || lib.elem stdenv.hostPlatform.system templates.${n}.systems
   ) (lib.attrNames templates);
   presetIds = lib.filter (n: templates.${n}.kind == "preset") ids;
+  packagePresetIds = lib.filter (n: templates.${n} ? shellPackages) presetIds;
   secretScaffold = presetIds != [ ];
   secretScaffoldFile = writeText "secret-scaffold.nix" (builtins.readFile ./secret-scaffold.nix);
   secretsFile = writeText "secrets.nix" (builtins.readFile ./secrets.nix);
@@ -72,13 +73,14 @@ let
       inherit (t) flake rev providers;
       honours_git = t.honours.git;
       honours_allow = t.honours.allow;
-    };
+    }
+    // lib.optionalAttrs (t ? shellPackages) { inherit (t) shellPackages; };
 
   index = writeText "templates.json" (builtins.toJSON (map entry ids));
 
   share = runCommand "nixarchy-devenv-templates" { } (
     ''
-      mkdir -p $out/presets
+      mkdir -p $out/presets $out/preset-packages
       cp ${index} $out/templates.json
       ${lib.optionalString secretScaffold ''
         cp ${secretScaffoldFile} $out/secret-scaffold.nix
@@ -88,6 +90,11 @@ let
     + lib.concatMapStrings (n: ''
       cp ${writeText "${n}.nix" (indent templates.${n}.lines)} $out/presets/${n}.nix
     '') presetIds
+    + lib.concatMapStrings (n: ''
+      cp ${
+        writeText "${n}.packages" (lib.concatStringsSep " " templates.${n}.shellPackages)
+      } $out/preset-packages/${n}
+    '') packagePresetIds
     # YAML indentation is meaning, so the keys go in verbatim.
     + lib.concatMapStrings (n: ''
       cp ${writeText "${n}.yaml" templates.${n}.yaml} $out/presets/${n}.yaml

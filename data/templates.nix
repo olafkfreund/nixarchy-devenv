@@ -244,6 +244,45 @@
     note = "uv, with the driver on LD_LIBRARY_PATH so PyPI's CUDA and ROCm wheels load. Start with `uv venv` then `uv pip install torch` (CUDA) or `uv pip install torch --index-url https://download.pytorch.org/whl/rocm6.3` (ROCm). Deliberately uses uv's own Python: a nixpkgs python3 ignores nix-ld entirely.";
   };
 
+  local-ai = {
+    kind = "preset";
+    group = "AI";
+    label = "Local AI";
+    shellPackages = [
+      "pkgs.ollama"
+      "pkgs.llama-cpp"
+      "pkgs.nvtopPackages.full"
+      "pkgs.pciutils"
+      "pkgs.clinfo"
+    ];
+    lines = ''
+      languages.python = {
+        enable = true;
+        venv.enable = true;
+        uv.enable = true;
+      };
+    '';
+    note = "Python with uv, Ollama and llama.cpp clients/runners, plus GPU and OpenCL diagnostics. It does not start a model service, download weights, or configure NixOS GPU drivers; add Python model libraries with uv.";
+  };
+
+  ai-providers = {
+    kind = "preset";
+    group = "AI";
+    label = "AI providers";
+    shellPackages = [
+      "pkgs.curl"
+      "pkgs.jq"
+    ];
+    lines = ''
+      languages.python = {
+        enable = true;
+        venv.enable = true;
+        uv.enable = true;
+      };
+    '';
+    note = "Python with uv, curl and jq for hosted AI API work. Add provider SDKs to the project's pyproject.toml with `uv add`; API keys stay in the agenix secret helpers and no provider service or credential is configured here.";
+  };
+
   # ## `jupyter`: an ordinary devshell, which is the sharp part
   #
   # Search for Jupyter on Nix and the first answer is jupyenv (formerly
