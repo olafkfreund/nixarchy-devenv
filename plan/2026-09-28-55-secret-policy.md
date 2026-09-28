@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 55
 spec: spec/2026-09-28-55-secret-policy.md
 ---
