@@ -36,7 +36,7 @@ any Omarchy with devenv installed.
   | Languages | Node.js, React, TypeScript, Python, Go, Rust, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
   | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
   | Mobile | Flutter, Android (x86_64; allows unfree packages in its `devenv.yaml`) |
-  | Cloud | [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates): AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner, DigitalOcean, one or several |
+  | Cloud | AWS, GCP, and Azure infrastructure; [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates) also supports combined AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner and DigitalOcean projects |
   | Yours | anything in `~/.config/nixarchy-devenv/templates/` |
 
 The same actions work from a terminal, through the `nixarchy-devenv` command
@@ -142,6 +142,13 @@ layout):
 - **The template check is hermetic.** `nix run .#templates-check` scaffolds
   every template with a real devenv in a throwaway `HOME`, and fails if your
   own devenv allow list changes.
+
+Cloud templates include Terraform, Kubernetes tooling, provider CLIs, lint and
+security checks, provider skills, and agenix-encrypted project secrets. Inside
+the generated devenv, use `secret-add`, `secret-edit`, `secret-delete`,
+`secret-user-add`, `secret-rekey`, and `secret-run`. Secret values stay out of
+the repository; only encrypted `secrets/*.age` files and recipient metadata
+are committed.
 
 ## Development
 

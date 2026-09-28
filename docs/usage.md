@@ -187,13 +187,26 @@ It is offered on x86_64 only.
 
 ### Cloud projects
 
-Pick **Cloud project** and tick one or more providers with <kbd>space</kbd>:
-AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner or DigitalOcean. This runs
+Choose **AWS infrastructure**, **Google Cloud infrastructure**, or **Azure
+infrastructure** for a focused provider project. Each runs the pinned
 [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates)
-at a pinned revision. You get the provider CLIs, Terraform with lint and
-security tools, `AGENTS.md` and agent skills, MCP servers for AI agents, and
-agenix secrets. Some of those MCP servers need cloud credentials; give them
-read-only ones. The project's own `AGENTS.md` says how to log in.
+generator and includes the provider CLI, Terraform, Kubernetes tooling, lint
+and security tools, `AGENTS.md`, agent skills, MCP servers, and agenix-encrypted
+secrets. **Cloud project** remains available when you want to combine providers:
+AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner or DigitalOcean.
+
+Inside the generated devenv:
+
+- `secret-add NAME` and `secret-edit NAME` encrypt values without putting them
+  in shell history;
+- `secret-delete NAME` removes one encrypted secret after exact-name checks;
+- `secret-user-add 'ssh-ed25519 …' LABEL` adds a teammate and rekeys the
+  encrypted secrets;
+- `secret-run --only NAME -- command` exposes a secret only to that command.
+
+Some MCP servers need cloud credentials; give them read-only ones. The
+project's own `AGENTS.md` says how to log in. Removing a recipient does not
+erase access to old Git revisions, so rotate any compromised provider secret.
 
 ### Your own templates
 
