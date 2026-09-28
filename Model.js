@@ -282,7 +282,7 @@ function parseTemplates(raw) {
   for (var i = 0; i < data.length; i++) {
     var t = data[i]
     if (!t || !/^[a-z0-9-]+$/.test(str(t.id))) continue
-    var kind = t.kind === "generator" || t.kind === "personal" ? t.kind : "preset"
+    var kind = t.kind === "generator" || t.kind === "scaffold" || t.kind === "personal" ? t.kind : "preset"
     var providers = []
     if (kind === "generator" && t.providers && t.providers.length !== undefined) {
       for (var p = 0; p < t.providers.length; p++) {
