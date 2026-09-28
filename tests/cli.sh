@@ -64,6 +64,8 @@ else
 fi
 jq -e 'map(select(.id=="cloud"))[0] | .honours_git == false and (.providers|index("aws"))' "$root/out" >/dev/null ||
   bad "templates: cloud generator fields"
+jq -e 'map(select(.id as $id | ["cpp", "go", "python", "rust"] | index($id))) | length == 4 and all(.[]; .secretScaffold == true)' "$root/out" >/dev/null ||
+  bad "templates: language presets carry the secret scaffold"
 expect 1 "templates without --json" -- "$cli" templates
 
 mkdir -p "$XDG_CONFIG_HOME/nixarchy-devenv/templates/"{mine,Bad,python,broken}
