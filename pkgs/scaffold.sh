@@ -77,7 +77,7 @@ BarWidget {
   Text {
     anchors.centerIn: parent
     text: Model.label
-    color: Style.colors.onSurface
+    color: Color.foreground
   }
 }
 QML
