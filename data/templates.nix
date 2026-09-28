@@ -62,6 +62,7 @@
 #            strip common indentation; pkgs/cli.nix indents them on the way in.
 #   yaml     (preset, optional) devenv.yaml keys, flush left, appended as is.
 #   systems  (optional) Nix systems the entry is offered on.
+#   secretScaffold  (optional) add the shared encrypted-secret helpers.
 #   flake, rev, providers, honours  (generator) see the `cloud` entry.
 {
   # react and node are the same three lines under two names, and that is
@@ -123,6 +124,7 @@
     kind = "preset";
     group = "Languages";
     label = "Python";
+    secretScaffold = true;
     lines = ''
       languages.python = {
         enable = true;
@@ -234,6 +236,7 @@
     kind = "preset";
     group = "Languages";
     label = "Go";
+    secretScaffold = true;
     lines = ''
       languages.go.enable = true;
     '';
@@ -249,10 +252,22 @@
     kind = "preset";
     group = "Languages";
     label = "Rust";
+    secretScaffold = true;
     lines = ''
       languages.rust.enable = true;
     '';
     note = "cargo, rustc, clippy and rust-analyzer from the project's nixpkgs. Add `languages.rust.channel = \"stable\";` for a rust-overlay toolchain instead.";
+  };
+
+  cpp = {
+    kind = "preset";
+    group = "Languages";
+    label = "C++";
+    secretScaffold = true;
+    lines = ''
+      languages.cplusplus.enable = true;
+    '';
+    note = "The C++ compiler and ccls from the project's nixpkgs. Choose CMake, Meson, or another build system when the project needs one.";
   };
 
   # ---- added in nixarchy-devenv #1 -------------------------------------------
