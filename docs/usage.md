@@ -252,6 +252,12 @@ the live shell; those checks cannot run hermetically in a generic devenv.
 Replace the placeholder plugin ID, author, description, and implementation
 before publishing.
 
+From a terminal, the equivalent command is:
+
+```console
+$ nixarchy-devenv new --parent ~/Source --name my-plugin omarchy-plugin
+```
+
 **NixOS configuration** creates a flake with an example host under
 `hosts/example/`, a `modules/` starting point, agenix wired as a flake input,
 and `scripts/validate`. The example is marked `boot.isContainer = true` so it
@@ -262,6 +268,12 @@ with your normal command, such as:
 
 ```console
 $ sudo nixos-rebuild switch --flake .#example
+```
+
+Create one from a terminal with:
+
+```console
+$ nixarchy-devenv new --parent ~/Source --name nixos-config nixos-config
 ```
 
 Neither starter copies this machine's hardware, users, credentials, or private

@@ -92,6 +92,10 @@ nixarchy's in a generated project, and nothing a teammate without nixarchy
 cannot read. Before a release, every template is scaffolded and evaluated
 against a real devenv.
 
+How-to guides: [AI projects](usage/#ai-projects), [Omarchy plugins and NixOS
+configurations](usage/#omarchy-and-nixos-projects), [cloud infrastructure](usage/#cloud-projects),
+and [encrypted secrets](usage/#language-presets-and-secrets).
+
 ## Removing, carefully
 
 <figure class="shot">
