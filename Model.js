@@ -273,7 +273,7 @@ function parseList(raw) {
   return out
 }
 
-var GROUP_ORDER = ["Languages", "Data & ML", "Mobile", "Cloud", "Yours"]
+var GROUP_ORDER = ["Languages", "Web", "Data & ML", "AI", "Mobile", "Cloud", "Omarchy", "NixOS", "Yours"]
 
 function parseTemplates(raw) {
   var data = parseJson(raw)
