@@ -584,7 +584,7 @@ FocusScope {
             tooltipText: "Dismiss"
             foreground: root.foreground
             fontFamily: root.fontFamily
-            fontSize: root.fontGlyph
+            fontSize: root.fontIcon
             size: Style.space(20)
             onClicked: DevenvState.lastError = ""
           }

@@ -64,6 +64,19 @@ the fix. It is not part of this plan.
    intent, spec and plan.
 6. **Merge** on green CI (squash, pinned to the head commit).
 
+## Deviations
+
+- **D1 flipped: `fontIcon` stays and `fontGlyph` goes.** The spec kept
+  `fontGlyph` on the assumption that "the second assignment is the one meant
+  to win". The history says otherwise. `4a9aeb8` ("the icon buttons climb the
+  rung too", the #37 follow-up) set all five PanelActionButtons to
+  `fontSize: root.fontIcon` so the icon scales with the text around it. In
+  these two buttons it added the `fontIcon` line above the existing
+  `fontGlyph` one instead of replacing it. So the fix removes the stale
+  `fontGlyph` line, and the diff against main is still exactly one removed
+  line per button. p620's hand copies were changed the same way, so T4 still
+  holds. The two buttons' icons are now the same rung as the other three.
+
 ## Tests
 
 | # | Command | Expected |
