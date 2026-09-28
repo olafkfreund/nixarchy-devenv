@@ -97,6 +97,18 @@ writeShellApplication {
           echo "FAIL (secret policy)"; echo "    unsupported policy '$policy'"; failed+=("$id"); continue
           ;;
       esac
+      case "$id" in
+        local-ai) expected_packages='pkgs.ollama pkgs.llama-cpp pkgs.nvtopPackages.full pkgs.pciutils pkgs.clinfo' ;;
+        ai-providers) expected_packages='pkgs.curl pkgs.jq' ;;
+        *) expected_packages="" ;;
+      esac
+      declared_packages=$(jq -r --arg id "$id" '.[] | select(.id == $id) | (.shellPackages // []) | join(" ")' <<<"$index")
+      if [ "$declared_packages" != "$expected_packages" ]; then
+        echo "FAIL (shell packages)"; echo "    $id declares '$declared_packages', expected '$expected_packages'"; failed+=("$id"); continue
+      fi
+      if [ -n "$expected_packages" ] && ! grep -Fq "packages = [ pkgs.git ] ++ [ $expected_packages ];" "$project/devenv.nix"; then
+        echo "FAIL (shell packages)"; echo "    generated package list is missing from $project/devenv.nix"; failed+=("$id"); continue
+      fi
       # `devenv info` is the cheapest command that evaluates the whole module.
       if ! (cd "$project" && iso devenv info) >>"$root/$id.log" 2>&1; then
         echo "FAIL (devenv info)"; tail -20 "$root/$id.log" | sed 's/^/    /'

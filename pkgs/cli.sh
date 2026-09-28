@@ -134,6 +134,15 @@ splice_preset() {
   sed -i "$((close - 1))r $file" devenv.nix
 }
 
+splice_shell_packages() {
+  local file=$1 packages
+  [ -f "$file" ] || return 0
+  packages=$(cat "$file")
+  [ -n "$packages" ] || return 0
+  grep -q '^  packages = \[ pkgs.git \];$' devenv.nix || return 1
+  sed -i "s|^  packages = \[ pkgs.git \];$|  packages = [ pkgs.git ] ++ [ $packages ];|" devenv.nix
+}
+
 splice_secret_scaffold() {
   local file=$1 close
   close=$(grep -n '^}' devenv.nix | tail -1 | cut -d: -f1) || true
@@ -196,6 +205,9 @@ cmd_init() {
     preset)
       need devenv
       devenv init || die 4 "devenv init failed."
+      if ! splice_shell_packages "$share/preset-packages/$tpl"; then
+        die 4 "devenv init wrote a packages line nixarchy-devenv does not recognise; add the template's tools by hand."
+      fi
       if ! splice_preset "$share/presets/$tpl.nix"; then
         {
           echo "nixarchy-devenv: devenv init wrote a devenv.nix nixarchy-devenv does not recognise (no closing '}' at column zero)."
