@@ -51,12 +51,12 @@ fresh() { local d; d=$(mktemp -d "$root/p.XXXX"); echo "$d"; }
 # ---- templates ----------------------------------------------------------------
 
 # Android is x86_64-only (its `systems`), so the built-in count is per machine.
-builtin=16
-[ "${HOSTTYPE:-}" = x86_64 ] && builtin=17
+builtin=17
+[ "${HOSTTYPE:-}" = x86_64 ] && builtin=18
 expect 0 "templates --json" -- "$cli" templates --json
 jq -e --argjson n "$builtin" 'length == $n and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
   bad "templates: $builtin entries with id/kind/group/label"
-if [ "$builtin" = 17 ]; then
+if [ "${HOSTTYPE:-}" = x86_64 ]; then
   jq -e 'map(select(.id=="android"))[0].yaml == true and (map(select(.id=="python"))[0] | has("yaml") | not)' "$root/out" >/dev/null ||
     bad "templates: android carries yaml, python does not"
 else
@@ -118,6 +118,10 @@ expect 0 "init python" -- with_devenv bash -c "cd '$d' && '$cli' init --no-git p
 grep -q 'languages.python = {' "$d/devenv.nix" || bad "init python: preset spliced"
 grep -q '^  languages.python = {' "$d/devenv.nix" || bad "init python: indented two spaces"
 ! grep -q 'languages.rust' "$d/devenv.nix" || bad "init python: placeholder replaced"
+[ -f "$d/secrets.nix" ] && [ -f "$d/secrets/.gitkeep" ] || bad "init python: secret scaffold files"
+grep -q '^    secret-add = {' "$d/devenv.nix" && grep -q '^    secret-user-add = {' "$d/devenv.nix" ||
+  bad "init python: secret helper scripts"
+[ "$(grep -c '^    secret-add = {' "$d/devenv.nix")" = 1 ] || bad "init python: one secret scaffold"
 [ "$(cat "$d/.devenv-template")" = python ] || bad "init python: .devenv-template"
 ! grep -q "$d :: allow" "$STUB_LOG" || bad "init python: no allow unless asked"
 [ ! -d "$d/.git" ] || bad "init --no-git: no repository"
