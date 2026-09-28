@@ -102,7 +102,7 @@ menu row, paste `share/omarchy-menu.jsonc` into
 - **`devenv`** creates, enters and runs environments. On nixarchy it is one
   line: `nixarchy-service-enable devenv && nixarchy apply`. Without it the list
   still works, and the panel says what is off.
-- **`nix`** with flakes, for the cloud templates.
+- **`nix`** with flakes, for the cloud and NixOS configuration templates.
 - **`git`**, for `git init` in new projects.
 - **`wl-copy`**, for copying a path.
 
@@ -122,6 +122,13 @@ diagnostics and PCI inspection. It does not start a model service, download
 weights, or configure NixOS GPU drivers. The **AI providers** preset adds
 Python/uv with curl and jq; add the provider SDKs your project needs with
 `uv add` so their versions live in the project's `pyproject.toml`.
+
+The **Omarchy plugin** starter creates a manifest, QML entry point, JavaScript
+test, Lua binding example and `scripts/validate`. Run `omarchy plugin validate .`
+on an Omarchy machine before enabling it. The **NixOS configuration** starter
+creates an example flake and host/module layout with agenix wired in; replace
+its example hardware and host values before running
+`sudo nixos-rebuild switch --flake .#example`.
 
 Secret policy is explicit: repository secrets are encrypted age files and
 runtime values are injected only when a command runs. SOPS or devenv
