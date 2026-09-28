@@ -66,8 +66,8 @@ let
     }
     // lib.optionalAttrs (t ? yaml) { yaml = true; }
     // {
-      secretPolicy = if t.kind == "preset" then "agenix" else t.secretPolicy;
-      secretScaffold = t.kind == "preset";
+      secretPolicy = if t.kind == "preset" || t.kind == "scaffold" then "agenix" else t.secretPolicy;
+      secretScaffold = t.kind == "preset" || t.kind == "scaffold";
     }
     // lib.optionalAttrs (t.kind == "generator") {
       inherit (t) flake rev providers;
@@ -81,6 +81,8 @@ let
   share = runCommand "nixarchy-devenv-templates" { } (
     ''
       mkdir -p $out/presets $out/preset-packages
+      cp ${./scaffold.sh} $out/scaffold.sh
+      chmod +x $out/scaffold.sh
       cp ${index} $out/templates.json
       ${lib.optionalString secretScaffold ''
         cp ${secretScaffoldFile} $out/secret-scaffold.nix
