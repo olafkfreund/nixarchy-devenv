@@ -70,20 +70,27 @@ cloud templates lived in their own repository, and there was no Java, Kotlin,
 </figure>
 </div>
 
-## Seventeen templates
+## Twenty-seven templates on x86_64
+
+The Android template is x86_64-only, so aarch64 shows twenty-six.
 
 | Group | Templates |
 | --- | --- |
 | Languages | Node.js, React, TypeScript, Python, Go, Rust, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
+| Web | Frontend web, Backend web |
 | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
+| AI | Local AI, AI providers |
 | Mobile | Flutter, Android (x86_64) |
 | Cloud | [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates): AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner, DigitalOcean |
+| Omarchy | Omarchy plugin starter |
+| NixOS | NixOS configuration starter |
 | Yours | any folder in `~/.config/nixarchy-devenv/templates/` |
 
-Each language template is a handful of devenv option lines, the same lines
-devenv's own documentation shows. There is nothing of nixarchy's in your
-project, and nothing a teammate without nixarchy cannot read. Before a release,
-every one of them is scaffolded and evaluated against a real devenv.
+Language templates are a handful of devenv option lines, while the Omarchy and
+NixOS starters create small independent project trees. There is nothing of
+nixarchy's in a generated project, and nothing a teammate without nixarchy
+cannot read. Before a release, every template is scaffolded and evaluated
+against a real devenv.
 
 ## Removing, carefully
 
