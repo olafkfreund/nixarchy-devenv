@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 51
 spec: spec/2026-09-28-51-language-templates.md
 ---
