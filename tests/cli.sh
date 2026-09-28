@@ -51,12 +51,12 @@ fresh() { local d; d=$(mktemp -d "$root/p.XXXX"); echo "$d"; }
 # ---- templates ----------------------------------------------------------------
 
 # Android is x86_64-only (its `systems`), so the built-in count is per machine.
-builtin=16
-[ "${HOSTTYPE:-}" = x86_64 ] && builtin=17
+builtin=19
+[ "${HOSTTYPE:-}" = x86_64 ] && builtin=20
 expect 0 "templates --json" -- "$cli" templates --json
 jq -e --argjson n "$builtin" 'length == $n and all(.[]; .id and .kind and .group and .label)' "$root/out" >/dev/null ||
   bad "templates: $builtin entries with id/kind/group/label"
-if [ "$builtin" = 17 ]; then
+if [ "$builtin" = 20 ]; then
   jq -e 'map(select(.id=="android"))[0].yaml == true and (map(select(.id=="python"))[0] | has("yaml") | not)' "$root/out" >/dev/null ||
     bad "templates: android carries yaml, python does not"
 else
@@ -64,6 +64,10 @@ else
 fi
 jq -e 'map(select(.id=="cloud"))[0] | .honours_git == false and (.providers|index("aws"))' "$root/out" >/dev/null ||
   bad "templates: cloud generator fields"
+for provider in aws gcp azure; do
+  jq -e --arg id "$provider" 'map(select(.id == $id))[0] | .providers == [$id] and .honours_git == false and .honours_allow == true' "$root/out" >/dev/null ||
+    bad "templates: $provider is a single-provider generator"
+done
 expect 1 "templates without --json" -- "$cli" templates
 
 mkdir -p "$XDG_CONFIG_HOME/nixarchy-devenv/templates/"{mine,Bad,python,broken}
