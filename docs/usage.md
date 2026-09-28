@@ -192,6 +192,12 @@ enables uv and a virtualenv but does not run `uv sync` until the project has a
 dependency manifest. C++ supplies the compiler and language server; choose
 CMake, Meson or another build system for the project.
 
+The **Frontend web** and **Backend web** presets provide a small Node,
+TypeScript, Prettier and ESLint baseline. They intentionally do not choose a
+framework: add Vite, Next, Astro or Svelte for browser work, or Express,
+Fastify, Nest or another service framework for backend work. The `format` and
+`lint` commands are available inside `devenv shell` once source files exist.
+
 Each of these presets also creates an agenix-compatible `secrets.nix` and an
 encrypted-only `secrets/` directory. From `devenv shell`:
 

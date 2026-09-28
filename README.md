@@ -34,6 +34,7 @@ any Omarchy with devenv installed.
   | Group | Templates |
   | --- | --- |
   | Languages | Node.js, React, TypeScript, Python, Go, Rust, C++, Java (Gradle), Java (Maven), Kotlin, .NET, PHP, Ruby |
+  | Web | Frontend web, Backend web |
   | Data & ML | Machine learning (uv, CUDA/ROCm), Jupyter |
   | Mobile | Flutter, Android (x86_64; allows unfree packages in its `devenv.yaml`) |
   | Cloud | AWS, GCP, and Azure infrastructure; [cloud-projects-templates](https://github.com/olafkfreund/cloud-projects-templates) also supports combined AWS, Azure, GCP, OCI, Kubernetes, Cloudflare, Hetzner and DigitalOcean projects |
@@ -106,6 +107,11 @@ Language presets include an agenix-compatible encrypted-secret scaffold. Inside
 the generated devenv, use `secret-add`, `secret-edit`, `secret-delete`,
 `secret-list`, `secret-run`, `secret-rekey`, and `secret-user-add`; plaintext
 values are never written to `devenv.nix`.
+
+The frontend and backend web presets provide a small Node/TypeScript baseline
+with pinned Prettier and ESLint commands. Add the framework and package
+manifest that fits the project; the templates do not choose Vite, Next, Astro,
+Express, Fastify, or a database for you.
 
 ## Settings
 
