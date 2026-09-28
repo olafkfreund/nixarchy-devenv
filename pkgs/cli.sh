@@ -219,7 +219,7 @@ cmd_init() {
         fi
         { echo; cat "$share/presets/$tpl.yaml"; } >>devenv.yaml
       fi
-      if [ "$(template_field "$tpl" secretScaffold)" = true ]; then
+      if [ "$(template_field "$tpl" secretPolicy)" = agenix ]; then
         install_secret_scaffold
       fi
       ;;
