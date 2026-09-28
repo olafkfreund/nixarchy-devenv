@@ -97,6 +97,52 @@
     note = "Node and npm and nothing else. The starting point for anything JavaScript that is not React.";
   };
 
+  frontend = {
+    kind = "preset";
+    group = "Web";
+    label = "Frontend web";
+    secretScaffold = true;
+    lines = ''
+      languages.javascript = {
+        enable = true;
+        npm.enable = true;
+      };
+      languages.typescript.enable = true;
+      scripts.format = {
+        packages = [ pkgs.prettier ];
+        exec = "prettier --write .";
+      };
+      scripts.lint = {
+        packages = [ pkgs.eslint ];
+        exec = "eslint .";
+      };
+    '';
+    note = "Node, npm, TypeScript, the language server, Prettier and ESLint. Add Vite, Next, Astro, Svelte or another browser framework and its package manifest explicitly.";
+  };
+
+  backend = {
+    kind = "preset";
+    group = "Web";
+    label = "Backend web";
+    secretScaffold = true;
+    lines = ''
+      languages.javascript = {
+        enable = true;
+        npm.enable = true;
+      };
+      languages.typescript.enable = true;
+      scripts.format = {
+        packages = [ pkgs.prettier ];
+        exec = "prettier --write .";
+      };
+      scripts.lint = {
+        packages = [ pkgs.eslint ];
+        exec = "eslint .";
+      };
+    '';
+    note = "A small Node and TypeScript service/API baseline with the language server, Prettier and ESLint. Add Express, Fastify, Nest, a database or another backend framework explicitly.";
+  };
+
   # typescript on top of javascript, not instead of it: devenv's typescript
   # module adds the compiler and the language server and no runtime at all, so
   # a project with only `languages.typescript.enable` has tsc and no node to
