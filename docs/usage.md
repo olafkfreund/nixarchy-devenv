@@ -198,8 +198,9 @@ framework: add Vite, Next, Astro or Svelte for browser work, or Express,
 Fastify, Nest or another service framework for backend work. The `format` and
 `lint` commands are available inside `devenv shell` once source files exist.
 
-Each of these presets also creates an agenix-compatible `secrets.nix` and an
-encrypted-only `secrets/` directory. From `devenv shell`:
+Every built-in preset creates an agenix-compatible `secrets.nix` and an
+encrypted-only `secrets/` directory. Cloud generators provide the same files
+through their external generator contract. From `devenv shell`:
 
 ```console
 $ printf %s "$TOKEN" | secret-add API_TOKEN
@@ -214,6 +215,11 @@ $ secret-rekey
 Add recipients to `secrets.nix` before storing the first secret. Commit
 `secrets.nix` and `secrets/*.age`; never commit plaintext values or pass them
 through shell history, logs, Terraform files or process arguments.
+
+The policy is agenix for repository files and runtime-only command injection. A
+future template may declare SOPS or devenv SecretSpec when it has a concrete
+provider-backed environment contract; no template creates an empty provider
+configuration just to claim SecretSpec support.
 
 ### Cloud projects
 
