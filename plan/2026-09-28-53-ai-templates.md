@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 53
 spec: spec/2026-09-28-53-ai-templates.md
 ---
