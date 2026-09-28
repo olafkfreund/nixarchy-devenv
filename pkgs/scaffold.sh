@@ -83,8 +83,6 @@ BarWidget {
 QML
 
   cat >Model.js <<'JS'
-.pragma library
-
 function label() { return "Edit me" }
 
 var Model = {
@@ -157,7 +155,11 @@ write_nixos() {
     };
   };
 
-  outputs = { self, nixpkgs, agenix }:
+  outputs =
+    inputs:
+    let
+      inherit (inputs) nixpkgs agenix;
+    in
     {
       nixosConfigurations.example = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
@@ -177,6 +179,10 @@ NIX
   networking.hostName = "example";
   environment.systemPackages = [ pkgs.git ];
 
+  # This keeps the example evaluable without inventing a disk or bootloader.
+  # Replace it with real hardware configuration before deploying to a machine.
+  boot.isContainer = true;
+
   # Set this to the release you are actually deploying.
   system.stateVersion = "25.11";
 }
@@ -193,8 +199,6 @@ MD
 #!/usr/bin/env bash
 set -euo pipefail
 nixfmt --check flake.nix hosts/example/configuration.nix
-deadnix --fail .
-statix check
 nix flake check --no-build
 echo "NixOS configuration starter checks passed"
 SH

@@ -114,6 +114,25 @@ writeShellApplication {
         echo "FAIL (devenv info)"; tail -20 "$root/$id.log" | sed 's/^/    /'
         sed 's/^/    | /' "$root/p/$id/devenv.nix"; failed+=("$id"); continue
       fi
+      if [ "$kind" = scaffold ]; then
+        case "$id" in
+          omarchy-plugin)
+            [ -f "$project/manifest.json" ] && [ -f "$project/BarWidget.qml" ] &&
+              [ -f "$project/Model.js" ] && [ -x "$project/scripts/validate" ] || {
+                echo "FAIL (scaffold files)"; echo "    omarchy-plugin starter files are incomplete"; failed+=("$id"); continue;
+              }
+            ;;
+          nixos-config)
+            [ -f "$project/flake.nix" ] && [ -f "$project/hosts/example/configuration.nix" ] &&
+              [ -f "$project/modules/README.md" ] && [ -x "$project/scripts/validate" ] || {
+                echo "FAIL (scaffold files)"; echo "    nixos-config starter files are incomplete"; failed+=("$id"); continue;
+              }
+            ;;
+        esac
+        if ! (cd "$project" && iso devenv shell -- ./scripts/validate) >>"$root/$id.log" 2>&1; then
+          echo "FAIL (scaffold validate)"; tail -30 "$root/$id.log" | sed 's/^/    /'; failed+=("$id"); continue
+        fi
+      fi
       # flutter stands in for dart through `package`; prove it is on PATH.
       if [ "$id" = flutter ] && ! (cd "$root/p/$id" && iso devenv shell -- flutter --version) >>"$root/$id.log" 2>&1; then
         echo "FAIL (flutter --version)"; tail -20 "$root/$id.log" | sed 's/^/    /'; failed+=("$id"); continue
