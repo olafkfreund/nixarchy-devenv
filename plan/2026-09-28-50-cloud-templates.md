@@ -1,5 +1,5 @@
 ---
-status: draft
+status: approved
 issue: 50
 spec: spec/2026-09-28-50-cloud-templates.md
 ---
