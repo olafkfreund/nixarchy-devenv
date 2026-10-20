@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
+import qs.Commons as Commons
 import "Model.js" as Model
 
 // The bar widget: a glyph for your devenv environments, and a keyboard popup
@@ -20,7 +21,7 @@ Panel {
   readonly property string terminalEditor: String(setting("terminalEditor", ""))
   readonly property bool hideWhenEmpty: setting("hideWhenEmpty", false) === true
 
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   function pushSettings() {
@@ -88,7 +89,7 @@ Panel {
     dimmed: DevenvState.counts.total === 0
     active: DevenvState.mutating
     useActiveColor: true
-    activeColor: Color.accent
+    activeColor: Commons.Color.accent
     tooltipText: "Dev environments · " + Model.summaryText(DevenvState.envs, DevenvState.deps)
 
     onPressed: function(b) {

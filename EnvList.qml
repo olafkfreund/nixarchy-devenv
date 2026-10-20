@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Ui
 import qs.Commons
+import qs.Commons as Commons
 import "Model.js" as Model
 
 // The list of environments. Rows come from Model.rowsFor; the ListModel is
@@ -24,7 +25,7 @@ Item {
   property bool cursorActive: false
   property bool cursorFromKeyboard: false
 
-  property color foreground: Color.foreground
+  property color foreground: Commons.Color.foreground
   property string fontFamily: Style.font.family
 
   // Set by DevenvView; the defaults are the bar popup's rungs.
@@ -153,7 +154,7 @@ Item {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         // Filled: allowed to activate on cd. Hollow: not allowed.
-        color: rowSurface.row.allowed ? Color.accent : "transparent"
+        color: rowSurface.row.allowed ? Commons.Color.accent : "transparent"
         border.width: rowSurface.row.allowed ? 0 : 1
         border.color: root.dim
 
@@ -204,7 +205,7 @@ Item {
           text: rowSurface.rowPending ? root.pendingVerb + "…"
             : (rowSurface.rowStatus ? Model.statusText(rowSurface.rowStatus) : "")
           textFormat: Text.PlainText
-          color: rowSurface.rowPending || rowSurface.running ? Color.accent : root.dim
+          color: rowSurface.rowPending || rowSurface.running ? Commons.Color.accent : root.dim
           font.family: root.fontFamily
           font.pixelSize: root.fontRow
           elide: Text.ElideRight
@@ -229,7 +230,7 @@ Item {
             iconText: modelData.glyph
             tooltipText: modelData.tooltip
             foreground: root.foreground
-            hoverColor: modelData.danger ? Color.urgent : root.foreground
+            hoverColor: modelData.danger ? Commons.Color.urgent : root.foreground
             fontFamily: root.fontFamily
             fontSize: root.fontIcon
             size: Style.space(22)

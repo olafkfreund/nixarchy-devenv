@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Ui
 import qs.Commons
+import qs.Commons as Commons
 import "Model.js" as Model
 
 // The create form: name, where, template, providers for a generator, git and
@@ -21,7 +22,7 @@ FocusScope {
   property var templates: []
   property var roots: []
   property string home: ""
-  property color foreground: Color.foreground
+  property color foreground: Commons.Color.foreground
   property string fontFamily: Style.font.family
 
   // Set by DevenvView; the defaults are the bar popup's rungs.
@@ -203,7 +204,7 @@ FocusScope {
         anchors.verticalCenter: parent.verticalCenter
         text: Model.Glyph.plus
         textFormat: Text.PlainText
-        color: Color.accent
+        color: Commons.Color.accent
         font.family: root.fontFamily
         font.pixelSize: root.fontGlyph
       }
@@ -300,7 +301,7 @@ FocusScope {
                   }
                   textFormat: Text.PlainText
                   color: fieldItem.modelData.kind === "bool" && root.form[fieldItem.modelData.key] === true
-                    ? Color.accent : root.dim
+                    ? Commons.Color.accent : root.dim
                   font.family: root.fontFamily
                   font.pixelSize: root.fontLabel
                 }
@@ -368,7 +369,7 @@ FocusScope {
                     text: (index === root.templateIndex ? "›  " : "   ") + modelData.label +
                       "   · " + modelData.group + (modelData.id === root.form.template ? "   ✓" : "")
                     textFormat: Text.PlainText
-                    color: index === root.templateIndex ? Color.accent : root.dim
+                    color: index === root.templateIndex ? Commons.Color.accent : root.dim
                     font.family: root.fontFamily
                     font.pixelSize: root.fontRow
                     elide: Text.ElideRight
@@ -397,7 +398,7 @@ FocusScope {
                     text: (index === root.providerIndex ? "›  " : "   ") +
                       (root.form.providers.indexOf(modelData) !== -1 ? "■  " : "□  ") + modelData
                     textFormat: Text.PlainText
-                    color: index === root.providerIndex ? Color.accent : root.dim
+                    color: index === root.providerIndex ? Commons.Color.accent : root.dim
                     font.family: root.fontFamily
                     font.pixelSize: root.fontRow
 
@@ -420,7 +421,7 @@ FocusScope {
                   : fieldItem.modelData.kind === "template" && root.chosen ? root.chosen.note
                   : (fieldItem.isCurrent && fieldItem.modelData.hint && !fieldItem.takesText ? fieldItem.modelData.hint : "")
                 textFormat: Text.PlainText
-                color: fieldItem.error !== "" ? Color.urgent : root.dim
+                color: fieldItem.error !== "" ? Commons.Color.urgent : root.dim
                 font.family: root.fontFamily
                 font.pixelSize: root.fontRow
                 wrapMode: Text.WordWrap
