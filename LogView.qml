@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Ui
 import qs.Commons
+import qs.Commons as Commons
 import "Model.js" as Model
 
 // The output of a create or upgrade, as it arrives. It follows the end until
@@ -15,7 +16,7 @@ FocusScope {
   property bool running: false
   property int exitCode: -1
 
-  property color foreground: Color.foreground
+  property color foreground: Commons.Color.foreground
   property string fontFamily: Style.font.family
 
   // Set by DevenvView; the defaults are the bar popup's rungs.
@@ -71,7 +72,7 @@ FocusScope {
         anchors.verticalCenter: parent.verticalCenter
         text: Model.Glyph.logs
         textFormat: Text.PlainText
-        color: root.running ? Color.accent : (root.exitCode > 0 ? Color.urgent : root.dim)
+        color: root.running ? Commons.Color.accent : (root.exitCode > 0 ? Commons.Color.urgent : root.dim)
         font.family: root.fontFamily
         font.pixelSize: root.fontGlyph
       }
@@ -91,7 +92,7 @@ FocusScope {
         anchors.verticalCenter: parent.verticalCenter
         text: root.running ? "running…" : (root.exitCode === 0 ? "done" : (root.exitCode > 0 ? "failed" : ""))
         textFormat: Text.PlainText
-        color: root.running ? Color.accent : (root.exitCode > 0 ? Color.urgent : root.dim)
+        color: root.running ? Commons.Color.accent : (root.exitCode > 0 ? Commons.Color.urgent : root.dim)
         font.family: root.fontFamily
         font.pixelSize: root.fontRow
       }
@@ -114,7 +115,7 @@ FocusScope {
         text: modelData
         textFormat: Text.PlainText
         wrapMode: Text.WrapAnywhere
-        color: String(modelData).indexOf("── exit") === 0 ? (root.exitCode > 0 ? Color.urgent : Color.accent) : root.dim
+        color: String(modelData).indexOf("── exit") === 0 ? (root.exitCode > 0 ? Commons.Color.urgent : Commons.Color.accent) : root.dim
         font.family: root.fontFamily
         font.pixelSize: root.fontRow
       }

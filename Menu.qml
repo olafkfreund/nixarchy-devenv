@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Model.js" as Model
 
@@ -109,7 +110,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: Color.menu.scrim
+      color: Commons.Color.menu.scrim
     }
 
     // A click away closes, as every summoned surface here does. The card
@@ -127,8 +128,8 @@ Item {
                        Math.round(panel.height * 0.85))
       anchors.horizontalCenter: parent.horizontalCenter
       y: Math.max(Style.gapsOut, Math.round((panel.height - height) / 3))
-      color: Color.popups.background
-      borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+      color: Commons.Color.popups.background
+      borderSpec: Border.surfaceSpec("popups", "border", Commons.Color.popups.border, Math.max(1, Style.space(2)))
       padding: Style.spacing.popupPadding
       radius: Style.cornerRadius
 
@@ -162,7 +163,7 @@ Item {
             // The one place the menu differs from the bar popup: a rung
             // higher on the shell's ladder, not a factor over it.
             large: true
-            foreground: Color.foreground
+            foreground: Commons.Color.foreground
             fontFamily: Style.font.family
             onCloseRequested: root.close()
           }

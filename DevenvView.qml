@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Ui
 import qs.Commons
+import qs.Commons as Commons
 import "Model.js" as Model
 
 // Everything you can press: the list, the filter, the questions, and the
@@ -10,7 +11,7 @@ import "Model.js" as Model
 FocusScope {
   id: root
 
-  property color foreground: Color.foreground
+  property color foreground: Commons.Color.foreground
   property string fontFamily: Style.font.family
 
   // A full-screen surface is read from further away than a bar popup, so the
@@ -555,7 +556,7 @@ FocusScope {
             anchors.top: parent.top
             text: Model.Glyph.alert
             textFormat: Text.PlainText
-            color: Color.urgent
+            color: Commons.Color.urgent
             font.family: root.fontFamily
             font.pixelSize: root.fontGlyph
           }
@@ -569,7 +570,7 @@ FocusScope {
             anchors.top: parent.top
             text: DevenvState.lastError
             textFormat: Text.PlainText
-            color: Color.urgent
+            color: Commons.Color.urgent
             font.family: root.fontFamily
             font.pixelSize: root.fontRow
             wrapMode: Text.WordWrap
@@ -595,7 +596,7 @@ FocusScope {
           visible: DevenvState.deps.cli && !DevenvState.deps.devenv && root.mode === "list"
           text: Model.dependencyText(DevenvState.deps)
           textFormat: Text.PlainText
-          color: Color.urgent
+          color: Commons.Color.urgent
           font.family: root.fontFamily
           font.pixelSize: root.fontRow
           wrapMode: Text.WordWrap
@@ -613,7 +614,7 @@ FocusScope {
             return ""
           }
           textFormat: Text.PlainText
-          color: DevenvState.streaming ? Color.accent : root.dim
+          color: DevenvState.streaming ? Commons.Color.accent : root.dim
           font.family: root.fontFamily
           font.pixelSize: root.fontRow
           elide: Text.ElideRight
@@ -653,7 +654,7 @@ FocusScope {
       z: 5
       opened: root.helpOpen
       foreground: root.foreground
-      background: Color.popups.background
+      background: Commons.Color.popups.background
       fontFamily: root.fontFamily
       fontRow: root.fontRow
       fontIcon: root.fontIcon
@@ -667,7 +668,7 @@ FocusScope {
       anchors.fill: parent
       z: 9
       visible: root.removeOpen
-      color: Color.popups.background
+      color: Commons.Color.popups.background
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -737,7 +738,7 @@ FocusScope {
                   width: parent.width
                   text: (index === root.removeTier ? "›  " : "   ") + modelData.label
                   textFormat: Text.PlainText
-                  color: index > 0 && index === root.removeTier ? Color.urgent : root.foreground
+                  color: index > 0 && index === root.removeTier ? Commons.Color.urgent : root.foreground
                   font.family: root.fontFamily
                   font.pixelSize: root.fontRow
                   font.bold: index === root.removeTier
@@ -775,7 +776,7 @@ FocusScope {
             visible: text !== ""
             text: root.removeWhy
             textFormat: Text.PlainText
-            color: Color.urgent
+            color: Commons.Color.urgent
             font.family: root.fontFamily
             font.pixelSize: root.fontRow
             wrapMode: Text.WordWrap
@@ -803,7 +804,7 @@ FocusScope {
       opened: root.confirmOpen
       message: root.confirmMessage
       confirmText: root.confirmLabel
-      background: Color.popups.background
+      background: Commons.Color.popups.background
       foreground: root.foreground
       fontFamily: root.fontFamily
       onCanceled: root.closeConfirm()
