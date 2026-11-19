@@ -67,8 +67,9 @@ Item {
   }
 
   // Plugin lifecycle: the host calls open(payloadJson) on summon and close()
-  // on hide, and reads `opened` to decide what `toggle` means. keepLoaded, so
-  // every open starts from a clean slate.
+  // on hide, and reads `opened` to decide what `toggle` means. The view loads on
+  // first open; Esc or a click only hides it, a toggle-close unloads it. Every
+  // open resets the view, and state lives in DevenvState.
   function open(payloadJson) {
     DevenvState.settings = root.readSettings()
     root.targetScreen = root.focusedScreen()
