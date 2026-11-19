@@ -46,7 +46,7 @@ nixarchy. The user guide is [`docs/usage.md`](docs/usage.md). The design is in
 | `EnvList.qml`, `CreateForm.qml`, `LogView.qml`, `ShortcutSheet.qml` | Drawing pieces used by the view. |
 | `Panel.qml` | The bar widget host: glyph, `KeyboardPanel` popup, and IPC target `nixarchy.devenv.bar`. |
 | `Menu.qml` | The full-screen menu host (manifest kind `menu`). |
-| `manifest.json` | Plugin id `nixarchy.devenv`, kinds `menu` + `bar-widget`, `keepLoaded: true`, settings schema. |
+| `manifest.json` | Plugin id `nixarchy.devenv`, kinds `menu` + `bar-widget`, settings schema. No `keepLoaded`: the view loads on first open. |
 | `data/templates.nix` | The template catalogue: `preset` entries (devenv option lines) and `generator` entries (pinned template sources such as cloud-projects-templates, with declared capabilities). Option names are read from devenv's source; see its header. |
 | `pkgs/cli.sh` | The `nixarchy-devenv` command: `templates`, `init`, `new`, `list`, `status`, `remove`. Everything that reads or changes a project directory is here, and removal's safety checks run here, right before deleting. It moved from nixarchy's `pkgs/dev-init.nix`. |
 | `pkgs/cli.nix` | Builds the command: the template index (`share/templates.json`) and one indented `share/presets/<id>.nix` per preset, then `writeShellApplication` over `cli.sh` (shellcheck runs at build). |
